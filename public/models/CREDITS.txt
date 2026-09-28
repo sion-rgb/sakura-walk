@@ -1,0 +1,16 @@
+Sakura Walk model sources
+
+haruka.vrm: VRoid Project / pixiv AvatarSample_A
+walker.vrm: VRoid Project / pixiv AvatarSample_C
+
+Copyright remains with the original rights holder. These assets are not MIT
+or CC0. They are freely redistributed with this free browser experience
+under the VRoid sample-model conditions. Do not relicense them as CC0, sell
+the raw files, or use their data in a character creation service.
+
+Full conditions:
+https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z
+
+The game adds its own posing, material treatment, costume details and
+fictional adult character identities. No pixiv endorsement is implied.
+Repository: https://github.com/sion-rgb/sakura-walk

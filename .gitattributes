@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.vrm binary
+*.png binary
+*.woff binary
+*.woff2 binary
+*.cmd text eol=crlf

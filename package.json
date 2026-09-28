@@ -1,0 +1,26 @@
+{
+  "name": "sakura-walk",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5188",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 5188",
+    "inspect:canvas": "node scripts/inspect-threejs-canvas.mjs",
+    "verify:visual": "node scripts/qa.mjs"
+  },
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
+    "@pixiv/three-vrm": "^3.5.5",
+    "three": "0.184.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/three": "^0.183.1",
+    "pngjs": "^7.0.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0"
+  }
+}
