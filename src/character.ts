@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName, MToonMaterial } from '@pixiv/three-vrm';
+import { createReferenceHair } from './character-hair';
+import { createReferenceWardrobe } from './character-wardrobe';
+import { tuneCompanionFace } from './character-face';
 
 /** Skinned anime avatars. The story identifies both characters as fictional adults. */
 export interface Character {
@@ -37,31 +40,6 @@ function batchHair(vrm: VRM): void {
     first.parent!.add(merged); meshes.forEach(m => m.removeFromParent());
   });
 }
-function pleatedSkirt(): THREE.Mesh {
-  const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
-  const rings = [[.073,.148,.085],[.020,.160,.100],[-.12,.218,.158],[-.295,.260,.211]],sides = 96;
-  rings.forEach(([y,rx,rz], row) => {
-    for (let i=0;i<=sides;i++) {
-      const a=i/sides*TAU, fold=1 + Math.cos(a*16)*.042*(row/3);
-      positions.push(Math.sin(a)*rx*fold,y,Math.cos(a)*rz*fold);uvs.push(i/sides*4,row/3);
-      if(row&&i){const k=row*(sides+1)+i;indices.push(k,k-sides-2,k-1,k,k-sides-1,k-sides-2);}
-    }
-  });
-  const g = new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
-  g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));g.setIndex(indices);g.computeVertexNormals();
-  const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
-  const c=canvas.getContext('2d')!;c.fillStyle='#36323c';c.fillRect(0,0,256,256);
-  for(let i=0;i<256;i+=64){c.fillStyle='#48404a';c.fillRect(i,0,22,256);c.fillRect(0,i,256,22);c.fillStyle='rgba(205,176,163,.3)';c.fillRect(i+32,0,2,256);c.fillRect(0,i+32,256,2);c.fillStyle='rgba(25,23,32,.36)';c.fillRect(i+45,0,7,256);c.fillRect(0,i+45,256,7);}
-  const map=new THREE.CanvasTexture(canvas);map.colorSpace=THREE.SRGBColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.anisotropy=8;
-  const mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map,roughness:.94,side:THREE.DoubleSide}));
-  mesh.name='Tailored-plaid-pleats';mesh.castShadow=mesh.receiveShadow=true;return mesh;
-}
-function blossomClip():THREE.Group {
-  const group=new THREE.Group();group.name='Sakura-hair-clip';
-  const mat=new THREE.MeshStandardMaterial({color:0xffb8cb,roughness:.65}),petal=new THREE.SphereGeometry(1,12,8);
-  for(let i=0;i<5;i++){const a=i/5*TAU,m=new THREE.Mesh(petal,mat);m.position.set(Math.sin(a)*.014,Math.cos(a)*.014,0);m.scale.set(.010,.015,.0035);m.rotation.z=-a;group.add(m);}
-  const center=new THREE.Mesh(new THREE.SphereGeometry(.004,10,8),new THREE.MeshStandardMaterial({color:0xffdb9a,roughness:.6}));center.position.z=-.005;group.add(center);return group;
-}
 function contactShadow():THREE.Mesh {
   const canvas=document.createElement('canvas');canvas.width=canvas.height=64;
   const c=canvas.getContext('2d')!,g=c.createRadialGradient(32,32,0,32,32,30);
@@ -80,15 +58,7 @@ function tuneMaterials(vrm:VRM,companion:boolean):void {
         if(m.isOutline)o.castShadow=false;
         if(/SKIN|FaceMouth/.test(m.name)){m.color.multiply(new THREE.Color(0xf1dad1));m.shadeColorFactor.multiply(new THREE.Color(0xf1d5cc));}
         if(/HAIR/.test(m.name)){m.color.multiply(new THREE.Color(companion?0xd2b6ac:0xe7dcd9));m.shadeColorFactor.multiplyScalar(.9);}
-        if(/Tops/.test(m.name)&&companion){
-          const compile=m.onBeforeCompile.bind(m);
-          m.onBeforeCompile=(shader,renderer)=>{
-            compile(shader,renderer);
-            shader.fragmentShader=shader.fragmentShader.replace('diffuseColor *= sampledDiffuseColor;',`float blueRibbon = smoothstep(0.035, 0.12, sampledDiffuseColor.b - sampledDiffuseColor.r) * smoothstep(0.015, 0.065, sampledDiffuseColor.b - sampledDiffuseColor.g);
-              sampledDiffuseColor.rgb = mix(sampledDiffuseColor.rgb, dot(sampledDiffuseColor.rgb,vec3(.299,.587,.114))*vec3(1.52,.51,.68),blueRibbon);
-              diffuseColor *= sampledDiffuseColor;`);
-          };m.customProgramCacheKey=()=> 'sakura-knit-ribbon-v2';
-        }m.needsUpdate=true;
+        m.needsUpdate=true;
       }
     }
   });
@@ -99,6 +69,7 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
   if(!vrm?.humanoid)throw new Error(`The ${role} model has no valid humanoid skeleton.`);
   VRMUtils.removeUnnecessaryVertices(vrm.scene);VRMUtils.combineSkeletons(vrm.scene);VRMUtils.combineMorphs(vrm);
   VRMUtils.rotateVRM0(vrm);batchHair(vrm);tuneMaterials(vrm,companion);
+  if(companion)await tuneCompanionFace(vrm);
   const root=new THREE.Group();root.name=companion?'Haruka-adult-companion':'adult-walker';root.add(vrm.scene);
   const modelBounds=new THREE.Box3().setFromObject(vrm.scene),targetHeight=companion?1.64:1.77,scale=targetHeight/(modelBounds.max.y-modelBounds.min.y);
   vrm.scene.scale.setScalar(scale);vrm.scene.position.y=-modelBounds.min.y*scale;root.add(contactShadow());
@@ -106,15 +77,15 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
   const hips=bone('hips'),head=bone('head'),neck=bone('neck'),spine=bone('spine'),chest=bone('chest'),hipsRest=hips.position.clone();
   const legs=(['left','right'] as const).map(side=>({hip:bone(`${side}UpperLeg`),knee:bone(`${side}LowerLeg`),foot:bone(`${side}Foot`)}));
   const arms=(['left','right'] as const).map(side=>({shoulder:bone(`${side}UpperArm`),elbow:bone(`${side}LowerArm`),hand:bone(`${side}Hand`)}));
-  const skirt=companion?pleatedSkirt():null;if(skirt)hips.add(skirt);
-  if(companion){const clip=blossomClip();clip.position.set(-.099,.080,-.063);clip.rotation.y=-.5;head.add(clip);}
+  const wardrobe=companion?createReferenceWardrobe(vrm):null;
+  const referenceHair=companion?createReferenceHair(vrm):null;
   for(const side of ['left','right'] as const){const sign=side==='left'?1:-1;for(const finger of ['Index','Middle','Ring','Little'] as const){for(const segment of ['Proximal','Intermediate','Distal'] as const){const b=bone(`${side}${finger}${segment}`);if(b)b.rotation.z=sign*(segment==='Proximal'?.11:.18);}}}
   const legData=legs.map(leg=>({upper:leg.knee.position.length(),lower:leg.foot.position.length(),footRest:leg.knee.position.y+leg.foot.position.y,footZ:leg.knee.position.z+leg.foot.position.z}));
   let travel=0,blend=0,look=0,waveBlend=0;
   const gazeTarget=new THREE.Object3D();root.add(gazeTarget);if(vrm.lookAt){vrm.lookAt.target=gazeTarget;vrm.lookAt.autoUpdate=true;}
   const diagnostics={meshes:0,triangles:0,materials:new Set<THREE.Material>()};
   root.traverse(o=>{if(o instanceof THREE.Mesh){diagnostics.meshes++;diagnostics.triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;for(const m of Array.isArray(o.material)?o.material:[o.material])diagnostics.materials.add(m);}});
-  root.userData.character={adultAge:companion?20:22,height:targetHeight,source:companion?'VRoid AvatarSample_A + authored costume detail':'VRoid AvatarSample_C',format:'VRM0-skinned',sourceLicense:'VRoid Hub sample model terms (see licenses)',meshes:diagnostics.meshes,triangles:diagnostics.triangles,materials:diagnostics.materials.size,animations:'distance-driven two-bone gait, blink, smile, gaze, wave, VRM hair springs'};
+  root.userData.character={adultAge:companion?20:22,height:targetHeight,source:companion?'VRoid AvatarSample_A + reference long hair, blazer, plaid, iris and satchel':'VRoid AvatarSample_C',format:'VRM0-skinned',sourceLicense:'VRoid Hub sample model terms (see licenses)',meshes:diagnostics.meshes,triangles:diagnostics.triangles,materials:diagnostics.materials.size,animations:'distance-driven two-bone gait, blink, smile, gaze, wave, VRM hair springs'};
   const character:Character={
     root,
     getEyeHeight(){return targetHeight*(companion?.917:.923);},
@@ -143,10 +114,10 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
       neck.rotation.y=look*.26;head.rotation.set(Math.sin(time*.83)*.012,look*.74,companion?Math.sin(time*.61)*.015:0);
       gazeTarget.position.set(Math.sin(look*1.45)*2,character.getEyeHeight(),Math.cos(look*1.45)*2);
       const blinkPhase=(time+(companion?0:1.9))%4.9,blink=blinkPhase>4.69?Math.sin((blinkPhase-4.69)/.21*Math.PI):0;
-      vrm.expressionManager?.setValue('blink',Math.max(0,blink));vrm.expressionManager?.setValue('happy',companion?.20:.055);vrm.expressionManager?.setValue('relaxed',companion?.13:.04);
+      vrm.expressionManager?.setValue('blink',Math.max(0,blink));vrm.expressionManager?.setValue('happy',companion?.06:.055);vrm.expressionManager?.setValue('relaxed',companion?.025:.04);
       waveBlend=THREE.MathUtils.damp(waveBlend,wave?1:0,7,dt);
-      if(companion&&waveBlend>.001){arms[0].shoulder.rotation.z-=.70*waveBlend;arms[0].shoulder.rotation.x-=.14*waveBlend;arms[0].elbow.rotation.y+=.10*waveBlend;arms[0].elbow.rotation.z-=2.10*waveBlend;arms[0].hand.rotation.z+=Math.sin(time*8)*.16*waveBlend;vrm.expressionManager?.setValue('happy',.20+waveBlend*.25);}
-      if(skirt){skirt.rotation.x=Math.sin(phase)*.035*blend;skirt.rotation.z=Math.sin(time*1.5)*.008;}
+      if(companion&&waveBlend>.001){arms[0].shoulder.rotation.z-=.70*waveBlend;arms[0].shoulder.rotation.x-=.14*waveBlend;arms[0].elbow.rotation.y+=.10*waveBlend;arms[0].elbow.rotation.z-=2.10*waveBlend;arms[0].hand.rotation.z+=Math.sin(time*8)*.16*waveBlend;vrm.expressionManager?.setValue('happy',.06+waveBlend*.16);}
+      wardrobe?.update(time,speed,phase);referenceHair?.update(dt,time,speed,look);
       vrm.update(dt);root.updateMatrixWorld(true);
       root.userData.character.gaitBlend=blend;root.userData.character.waveBlend=waveBlend;
       root.userData.character.feet=legs.map((_,i)=>{vrm.humanoid.getRawBoneNode(i===0?'leftFoot':'rightFoot')!.getWorldPosition(v);return {x:v.x,y:v.y,z:v.z};});

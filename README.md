@@ -2,6 +2,8 @@
 
 在櫻花大道上，慢慢一起走。可直接在瀏覽器遊玩的 Three.js 陪伴散步體驗。
 
+**1.2.0 角色修正版**：以下截圖來自本次長髮、制服與眼睛的修正。
+
 **[開始散步 / Play](https://sion-rgb.github.io/sakura-walk/)** · **[下載 Windows 版本 / Releases](https://github.com/sion-rgb/sakura-walk/releases)**
 
 ![Sakura Walk](docs/third-person.png)
@@ -9,6 +11,7 @@
 ## 這一版
 
 - 兩位角色使用具骨架、表情和髮絲動態的 VRoid 基礎模型，重新調整服裝與配色。Haruka 設定為20歲，男生22歲，均為虛構成年人。
+- 1.2 角色修正版：依參考圖改成深棕長髮、櫻花髮飾、炭灰西裝外套、奶油白襯衫、酒紅蝴蝶結、格紋百褶裙、及膝襪、棕色樂福鞋及皮革手袋。重新繪製暖棕虹膜，保留眨眼、視線與微笑。
 - 第一／第三人稱即時切換；第一人稱可望向 Haruka，同時繼續沿原方向行走。
 - 同行採用共同速度加隊形修正：同步起步、停步、轉向，靠近路邊會調整站位。
 - 櫻花隧道、落瓣、花叢、蕨類、苔石、小溪、石燈籠、木椅與鳥居遠景。
@@ -53,6 +56,7 @@ Node.js 20.19+ or 22.12+ recommended for Vite. Run `npm ci`, `npm run dev`, `npm
 
 - `src/main.ts`: renderer, fixed-step kinematic movement/collision, companion formation, cinematic camera and UI state.
 - `src/character.ts`: licensed VRoid skinned characters, distance-driven humanoid gait, blink/head-look/greeting, spring hair and authored costume details.
+- `src/character-hair.ts`, `src/character-wardrobe.ts`, `src/character-face.ts`: reference-inspired long layered hair, fitted skinned clothing, plaid, accessories and facial materials.
 - `src/environment.ts`: seeded sakura avenue, instanced blossom/grass/petal kit, detailed props, GPU petal animation.
 - `src/audio.ts`: original Web Audio wind, bird chirps, distant bells, footfalls and gentle instrumental notes.
 - `src/style.css` / `index.html`: responsive controls, opening title, photo and pause states.
@@ -60,10 +64,12 @@ Node.js 20.19+ or 22.12+ recommended for Vite. Run `npm ci`, `npm run dev`, `npm
 
 The original illustration guides the mood, palette and costume direction. The revised characters adapt VRoid AvatarSample_A and AvatarSample_C with skinned humanoid animation, facial expressions, hair springs and additional costume details. Audio is synthesized, with no recorded dialogue. Physics uses 60 Hz kinematic circle collision on a level path.
 
+The 1.2 character revision replaces the female sample's bob and cardigan with authored long hair and a blazer outfit. Lower hair strands stay close to the shoulders when she turns her head. The face retains the licensed sample's underlying shape; it is not an exact sculpt of the supplied illustration. Hair and fabric use controlled deformation, not physical cloth simulation. The source reference sheet is not included in the distribution.
+
 First person keeps the camera at the male avatar's eye height and hides his model to avoid seeing inside the head. Q focuses on the companion while the movement direction stays unchanged; dragging releases that focus. Photo mode temporarily uses third person and restores the selected perspective afterward. The models load approximately 28 MB in total on first visit; assets remain local to the site after deployment.
 
 ## Credits and licensing
 
 Original application code is MIT. **VRoid model files are not MIT or CC0**; their separate [sample-model conditions](licenses/VRoid-models.md) permit this free application and free redistribution subject to those terms. Model copyright remains with VRoid Project / pixiv. This project is not endorsed by pixiv. Three.js and three-vrm use MIT; bundled fonts use OFL. See `licenses/`.
 
-Full release verification and observed limitations: [release notes](docs/verification.md). Development captures and raw tests are kept locally under artifacts; published images are actual in-game captures.
+Verification and observed limitations: [1.2 character correction](docs/verification-v1.2.md). Previous verification: [1.1 release notes](docs/verification.md). Development captures and raw tests are kept locally under artifacts; scene images are actual in-game captures.
