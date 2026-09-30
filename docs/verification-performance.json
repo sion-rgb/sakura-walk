@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-01",
+  "build": "index-B3HjfGis.js",
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 SUPER (0x00001E84) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": [
+    1920,
+    1080
+  ],
+  "deviceScaleFactor": 2,
+  "method": "Queries enclose actual renderer work. Median GPU time excludes preliminary frame-boundary query measurements. Present interval is separate from GPU work.",
+  "profile": [
+    {
+      "quality": "high",
+      "mode": "native",
+      "gpu": {
+        "samples": 23,
+        "medianMs": 18.581504,
+        "p95Ms": 22.254944,
+        "meanMs": 18.237714086956522
+      },
+      "frameIntervals": {
+        "samples": 189,
+        "medianMs": 13.399999999999636,
+        "p95Ms": 26.699999999999818,
+        "meanMs": 18.99259259259259
+      },
+      "resolution": {
+        "mode": "native",
+        "scale": 1,
+        "sceneWidth": 2880,
+        "sceneHeight": 1620,
+        "displayWidth": 2880,
+        "displayHeight": 1620,
+        "reconstruction": "native",
+        "gpuTimer": true,
+        "gpuMs": 15.567328,
+        "gpuSamples": 35,
+        "targetGpuMs": 14.5
+      },
+      "renderer": {
+        "calls": 153,
+        "triangles": 845549,
+        "geometries": 73,
+        "textures": 126
+      },
+      "glError": 0
+    },
+    {
+      "quality": "high",
+      "mode": "performance",
+      "gpu": {
+        "samples": 24,
+        "medianMs": 8.828928,
+        "p95Ms": 13.26304,
+        "meanMs": 9.586126666666667
+      },
+      "frameIntervals": {
+        "samples": 189,
+        "medianMs": 13.299999999999272,
+        "p95Ms": 13.5,
+        "meanMs": 13.294708994708998
+      },
+      "resolution": {
+        "mode": "performance",
+        "scale": 0.67,
+        "sceneWidth": 1930,
+        "sceneHeight": 1085,
+        "displayWidth": 2880,
+        "displayHeight": 1620,
+        "reconstruction": "Catmull-Rom + limited sharpening",
+        "gpuTimer": true,
+        "gpuMs": 9.1136,
+        "gpuSamples": 39,
+        "targetGpuMs": 14.5
+      },
+      "renderer": {
+        "calls": 153,
+        "triangles": 845549,
+        "geometries": 73,
+        "textures": 126
+      },
+      "glError": 0
+    },
+    {
+      "quality": "cinematic",
+      "mode": "native",
+      "gpu": {
+        "samples": 23,
+        "medianMs": 36.390304,
+        "p95Ms": 44.990464,
+        "meanMs": 37.32075965217391
+      },
+      "frameIntervals": {
+        "samples": 189,
+        "medianMs": 39.89999999999782,
+        "p95Ms": 53.20000000000073,
+        "meanMs": 40.30634920634921
+      },
+      "resolution": {
+        "mode": "native",
+        "scale": 1,
+        "sceneWidth": 3840,
+        "sceneHeight": 2160,
+        "displayWidth": 3840,
+        "displayHeight": 2160,
+        "reconstruction": "native",
+        "gpuTimer": true,
+        "gpuMs": 36.044384,
+        "gpuSamples": 29,
+        "targetGpuMs": 14.5
+      },
+      "renderer": {
+        "calls": 153,
+        "triangles": 848549,
+        "geometries": 73,
+        "textures": 126
+      },
+      "glError": 0
+    },
+    {
+      "quality": "cinematic",
+      "mode": "performance",
+      "gpu": {
+        "samples": 24,
+        "medianMs": 17.764352,
+        "p95Ms": 21.276256,
+        "meanMs": 17.945185333333335
+      },
+      "frameIntervals": {
+        "samples": 189,
+        "medianMs": 13.400000000001455,
+        "p95Ms": 26.69999999999709,
+        "meanMs": 18.85132275132276
+      },
+      "resolution": {
+        "mode": "performance",
+        "scale": 0.67,
+        "sceneWidth": 2573,
+        "sceneHeight": 1447,
+        "displayWidth": 3840,
+        "displayHeight": 2160,
+        "reconstruction": "Catmull-Rom + limited sharpening",
+        "gpuTimer": true,
+        "gpuMs": 16.364416,
+        "gpuSamples": 35,
+        "targetGpuMs": 14.5
+      },
+      "renderer": {
+        "calls": 156,
+        "triangles": 880883,
+        "geometries": 73,
+        "textures": 126
+      },
+      "glError": 0
+    }
+  ],
+  "checks": [
+    {
+      "suite": "resolution",
+      "passed": 15,
+      "total": 15,
+      "errors": [],
+      "report": "artifacts/resolution-release-qa/report.json"
+    },
+    {
+      "suite": "controls",
+      "passed": 28,
+      "total": 28,
+      "errors": [],
+      "report": "artifacts/resolution-controls/behavior.json"
+    },
+    {
+      "suite": "rendering",
+      "passed": 7,
+      "total": 7,
+      "errors": [],
+      "report": "artifacts/resolution-quality/quality.json"
+    }
+  ],
+  "publication": "Local implementation; remote remains a68a79f",
+  "addedThirdPartyAssets": []
+}
