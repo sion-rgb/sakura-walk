@@ -2,24 +2,26 @@
 
 在櫻花大道上，慢慢一起走。可直接在瀏覽器遊玩的 Three.js 陪伴散步體驗。
 
-**1.2.0 角色修正版**：以下截圖來自本次長髮、制服與眼睛的修正。
+**1.3.0 角色與光影升級**：套用使用者提供的兩位 VRM 角色，加入更清晰的樹冠陰影、戶外反射光、石材凹凸與分層植被。
 
 **[開始散步 / Play](https://sion-rgb.github.io/sakura-walk/)** · **[下載 Windows 版本 / Releases](https://github.com/sion-rgb/sakura-walk/releases)**
 
-![Sakura Walk](docs/third-person.png)
+![Sakura Walk](docs/v1.3-third-person.png)
 
 ## 這一版
 
-- 兩位角色使用具骨架、表情和髮絲動態的 VRoid 基礎模型，重新調整服裝與配色。Haruka 設定為20歲，男生22歲，均為虛構成年人。
-- 1.2 角色修正版：依參考圖改成深棕長髮、櫻花髮飾、炭灰西裝外套、奶油白襯衫、酒紅蝴蝶結、格紋百褶裙、及膝襪、棕色樂福鞋及皮革手袋。重新繪製暖棕虹膜，保留眨眼、視線與微笑。
+- 1.3 光影升級：戶外 HDR 環境光、暖陽與冷色天光、隨散步範圍移動的樹冠陰影、深度環境遮蔽、依陰影計算的薄霧散射和克制的 Bloom。
+- 花崗岩地磚、石材、樹皮與木欄使用分開的顏色、凹凸和粗糙度貼圖；小溪有動態波紋與環境反射，服裝、髮絲和皮革有不同的受光質感。
+- 女生使用使用者提供的 BBs（作者：sion），男生使用 sssi（作者：sssi），兩者均為 VRM 1.0。保留原模型的身形比例、服裝、髮型與貼圖，接上同行、表情及髮絲動態。
+- 遊戲中的 Haruka 設定為20歲，男生22歲，均為虛構成年人；以等比例縮放設定身高1.64／1.77公尺。1.3 不再套用1.2的自製髮型、服裝或虹膜覆蓋層。
 - 第一／第三人稱即時切換；第一人稱可望向 Haruka，同時繼續沿原方向行走。
 - 同行採用共同速度加隊形修正：同步起步、停步、轉向，靠近路邊會調整站位。
 - 櫻花隧道、落瓣、花叢、蕨類、苔石、小溪、石燈籠、木椅與鳥居遠景。
 - 輕量環境音、招呼、拍照、觸控操作與畫質設定。沒有戰鬥或任務壓力。
 
-角色是基於授權模型的風格化改製，並非參考插畫的一比一3D重建。主要針對桌面瀏覽器；手機操作有模擬驗證，尚未做實機效能保證。
+目前角色外觀以使用者新提供的兩個 VRM 模型為準；最初的插畫仍是氣氛與配色參考。主要針對桌面瀏覽器，手機實機效能尚未驗證。
 
-![First-person companionship](docs/first-person.png)
+![First-person companionship](docs/v1.3-first-person.png)
 
 A complete Three.js companion-walking experience. Haruka is a fictional 20-year-old adult; the player avatar is 22. The costume is school-uniform-inspired, with a wholesome, non-sexual presentation.
 
@@ -48,6 +50,16 @@ Or run `node scripts/serve.mjs`, then visit http://127.0.0.1:5188/. Local server
 
 Pause settings include volume, soft piano, afternoon warmth, gentler motion and render quality. Returning to the entrance resets both characters. Photo mode freezes the moment and allows safe camera composition. Camera elevation and zoom have limits to maintain a tasteful view.
 
+## 畫質設定
+
+| 模式 | 效果 |
+|---|---|
+| Beautiful（預設） | 2048 陰影、GTAO 接觸遮蔽、薄霧體積光、HDR Bloom，像素倍率上限1.5 |
+| Cinematic | 4096 陰影、更高解析度與取樣的 GTAO／體積光，像素倍率上限2 |
+| Balanced | 1024 陰影及相同的材質／戶外環境光，關閉後處理，像素倍率上限1 |
+
+這版使用 WebGL2 即時渲染。薄霧以 shadow-map ray marching 計算光的散射，**沒有啟用硬件光線追蹤、完整路徑追蹤或動態全局光照**。水面反射來自戶外 PMREM 環境，並非鏡面反射整個場景。渲染保留 MToon 角色材質和植被實例的相容性。高解析度或較弱的裝置可改用 Balanced；手機實機效能仍未驗證。
+
 ## Develop
 
 Node.js 20.19+ or 22.12+ recommended for Vite. Run `npm ci`, `npm run dev`, `npm run build`, or `npm run preview`. Tests: `npx playwright install chromium`, then `npm run verify:visual` with the preview server running. All browser fonts and runtime assets are local, and no API keys are used by the app. `dist/` can be served on any static HTTPS host with its relative asset URLs.
@@ -55,21 +67,27 @@ Node.js 20.19+ or 22.12+ recommended for Vite. Run `npm ci`, `npm run dev`, `npm
 ## Architecture
 
 - `src/main.ts`: renderer, fixed-step kinematic movement/collision, companion formation, cinematic camera and UI state.
-- `src/character.ts`: licensed VRoid skinned characters, distance-driven humanoid gait, blink/head-look/greeting, spring hair and authored costume details.
-- `src/character-hair.ts`, `src/character-wardrobe.ts`, `src/character-face.ts`: reference-inspired long layered hair, fitted skinned clothing, plaid, accessories and facial materials.
+- `src/character.ts`: user-supplied VRM 1.0 characters, distance-driven humanoid gait, blink/head-look/greeting and VRM spring motion. The model files retain their original geometry, textures and embedded metadata.
+- `src/character-hair.ts`, `src/character-wardrobe.ts`, `src/character-face.ts`: legacy 1.2 reference-inspired overlays retained in the source; these are not used by the 1.3 character loader.
 - `src/environment.ts`: seeded sakura avenue, instanced blossom/grass/petal kit, detailed props, GPU petal animation.
+- `src/environment-materials.ts`: deterministic granite, relief/roughness and water-normal textures, with linear data maps.
+- `src/lighting.ts`: outdoor HDR sky/PMREM and stabilized directional shadows.
+- `src/render-pipeline.ts`, `src/atmosphere-pass.ts`: actual beauty-depth GTAO, shadow-marched mist, HDR bloom and quality presets. Avatar masks and cutout foliage remain in the depth source.
 - `src/audio.ts`: original Web Audio wind, bird chirps, distant bells, footfalls and gentle instrumental notes.
 - `src/style.css` / `index.html`: responsive controls, opening title, photo and pause states.
 - `scripts/qa.mjs`: real-input browser checks, motion recording, portrait/landscape evidence.
+- `scripts/qa-lighting.mjs`: quality switching, shader/GL checks, resize and measured frame timing. Verification record: [docs/verification-v1.3.md](docs/verification-v1.3.md).
 
-The original illustration guides the mood, palette and costume direction. The revised characters adapt VRoid AvatarSample_A and AvatarSample_C with skinned humanoid animation, facial expressions, hair springs and additional costume details. Audio is synthesized, with no recorded dialogue. Physics uses 60 Hz kinematic circle collision on a level path.
+The original illustration guides the mood and palette. Version 1.3 uses the user's BBs and sssi VRM 1.0 models for the companion and walker, respectively. Their supplied appearance replaces the earlier sample-based character design. Audio is synthesized, with no recorded dialogue. Physics uses 60 Hz kinematic circle collision on a level path.
 
-The 1.2 character revision replaces the female sample's bob and cardigan with authored long hair and a blazer outfit. Lower hair strands stay close to the shoulders when she turns her head. The face retains the licensed sample's underlying shape; it is not an exact sculpt of the supplied illustration. Hair and fabric use controlled deformation, not physical cloth simulation. The source reference sheet is not included in the distribution.
+The two new VRM files are copied without binary changes; runtime uniform scaling, animation and rendering do not rewrite them. Facial expressions and VRM spring bones use the supplied rig. Clothing follows its skinned mesh; this is not full physical cloth simulation. Older sample files (`haruka.vrm`, `walker.vrm`) and the 1.2 iris asset remain in the source for the earlier implementation but are not requested by the active character loader. Their original licensing still applies. The source reference sheet is not included in the distribution.
 
-First person keeps the camera at the male avatar's eye height and hides his model to avoid seeing inside the head. Q focuses on the companion while the movement direction stays unchanged; dragging releases that focus. Photo mode temporarily uses third person and restores the selected perspective afterward. The models load approximately 28 MB in total on first visit; assets remain local to the site after deployment.
+First person keeps the camera at the male avatar's eye height and hides his model to avoid seeing inside the head. Q focuses on the companion while the movement direction stays unchanged; dragging releases that focus. Photo mode temporarily uses third person and restores the selected perspective afterward. The two active model files total 32,850,812 bytes (about 32.9 MB before HTTP compression) on first load; runtime assets are served by the same site.
 
 ## Credits and licensing
 
-Original application code is MIT. **VRoid model files are not MIT or CC0**; their separate [sample-model conditions](licenses/VRoid-models.md) permit this free application and free redistribution subject to those terms. Model copyright remains with VRoid Project / pixiv. This project is not endorsed by pixiv. Three.js and three-vrm use MIT; bundled fonts use OFL. See `licenses/`.
+Original application code is MIT. **The model files are not covered by the code's MIT license and are not CC0.** The active BBs model by sion and sssi model by sssi use the VRM Public License 1.0 together with their embedded permissions and restrictions; see [user-model provenance, hashes and conditions](licenses/User-models.md). Their embedded settings permit redistribution and modification with redistribution, and retain restrictions on excessively violent or sexual, political or religious, and antisocial or hate usage.
 
-Verification and observed limitations: [1.2 character correction](docs/verification-v1.2.md). Previous verification: [1.1 release notes](docs/verification.md). Development captures and raw tests are kept locally under artifacts; scene images are actual in-game captures.
+The legacy VRoid sample files remain subject to their separate [sample-model conditions](licenses/VRoid-models.md), with copyright retained by VRoid Project / pixiv. This project is not endorsed by pixiv. Three.js and three-vrm use MIT; bundled fonts use OFL. See `licenses/`.
+
+Version 1.3 local production verification passed28 real-input checks and7 rendering checks; see [1.3 verification and limits](docs/verification-v1.3.md). Historical verification: [1.2 character correction](docs/verification-v1.2.md), [1.1 release notes](docs/verification.md). Development captures and raw tests are kept locally under artifacts; prior-version evidence does not establish verification of the new models.

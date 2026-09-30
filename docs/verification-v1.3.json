@@ -1,0 +1,677 @@
+{
+  "version": "1.3.0",
+  "buildChunk": "index-DqqnQ_gL.js",
+  "runId": "supplied-pair-release",
+  "models": [
+    {
+      "asset": "bbs-companion.vrm",
+      "bytes": 16499944,
+      "sha256": "b8971c4ca443882c2437251122251c9bc9fcc9efb1ce95b354ef27b18299d5b7",
+      "originalPublicDistIdentical": true
+    },
+    {
+      "asset": "sssi-walker.vrm",
+      "bytes": 16350868,
+      "sha256": "7a17e310466e05b4d0101b88e9e9db8efb7811a378f4e1431f835aaeb3e5adc4",
+      "originalPublicDistIdentical": true
+    }
+  ],
+  "behavior": {
+    "checks": [
+      {
+        "name": "Start and gesture audio unlock",
+        "pass": true
+      },
+      {
+        "name": "Both supplied VRM1 avatars replace the sample characters",
+        "pass": true
+      },
+      {
+        "name": "Forward walking responds to real input",
+        "pass": true
+      },
+      {
+        "name": "Companion settles beside stopped player",
+        "pass": true
+      },
+      {
+        "name": "Camera-relative screen-right direction",
+        "pass": true
+      },
+      {
+        "name": "Reverse movement and natural reformation",
+        "pass": true
+      },
+      {
+        "name": "Greeting triggers wave and visible line",
+        "pass": true
+      },
+      {
+        "name": "Mouse orbit updates camera",
+        "pass": true
+      },
+      {
+        "name": "Safe camera floor and minimum zoom",
+        "pass": true
+      },
+      {
+        "name": "Photo mode freezes locomotion",
+        "pass": true
+      },
+      {
+        "name": "Photo download produces PNG",
+        "pass": true
+      },
+      {
+        "name": "Pause freezes scene and audio",
+        "pass": true
+      },
+      {
+        "name": "Settings are connected to runtime",
+        "pass": true
+      },
+      {
+        "name": "Mute control",
+        "pass": true
+      },
+      {
+        "name": "Return to entrance resets formation",
+        "pass": true
+      },
+      {
+        "name": "Auto-stroll moves and toggles off",
+        "pass": true
+      },
+      {
+        "name": "Path boundary and companion side switch",
+        "pass": true
+      },
+      {
+        "name": "First person switches to adult eye height and hides self",
+        "pass": true
+      },
+      {
+        "name": "First person looks at companion while walking the original direction",
+        "pass": true
+      },
+      {
+        "name": "First-person companion stops in formation",
+        "pass": true
+      },
+      {
+        "name": "Photo mode restores first-person perspective and gaze",
+        "pass": true
+      },
+      {
+        "name": "First-person free look releases companion focus",
+        "pass": true
+      },
+      {
+        "name": "Third person restores visible male avatar",
+        "pass": true
+      },
+      {
+        "name": "Touch joystick emits movement and releases",
+        "pass": true
+      },
+      {
+        "name": "Touch-screen orbit and readable viewport",
+        "pass": true
+      },
+      {
+        "name": "Landscape resize retains nonzero canvas",
+        "pass": true
+      },
+      {
+        "name": "Touch perspective and look-at controls work",
+        "pass": true
+      },
+      {
+        "name": "Browser console and requests",
+        "pass": true,
+        "errors": [],
+        "failedRequests": []
+      }
+    ],
+    "errors": [],
+    "failedRequests": [],
+    "gpu": {
+      "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 SUPER (0x00001E84) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    }
+  },
+  "rendering": {
+    "url": "http://127.0.0.1:5192/",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 SUPER (0x00001E84) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "modes": [
+      {
+        "quality": "high",
+        "timing": {
+          "medianMs": 13.300000000000182,
+          "p95Ms": 13.400000000000546,
+          "meanMs": 13.295959595959598
+        },
+        "renderer": {
+          "calls": 139,
+          "triangles": 970329,
+          "geometries": 69,
+          "textures": 120
+        },
+        "graphics": {
+          "pipeline": "beauty-depth GTAO + shadow-marched mist + bloom",
+          "rayTracing": false,
+          "ao": true,
+          "aoResolutionScale": 0.6,
+          "volumetric": true,
+          "shadowSize": 2048,
+          "ibl": "outdoor PMREM",
+          "postEffects": 3
+        }
+      },
+      {
+        "quality": "cinematic",
+        "timing": {
+          "medianMs": 13.299999999999272,
+          "p95Ms": 13.399999999999636,
+          "meanMs": 13.428282828282825
+        },
+        "renderer": {
+          "calls": 139,
+          "triangles": 970329,
+          "geometries": 69,
+          "textures": 120
+        },
+        "graphics": {
+          "pipeline": "beauty-depth GTAO + shadow-marched mist + bloom",
+          "rayTracing": false,
+          "ao": true,
+          "aoResolutionScale": 0.8,
+          "volumetric": true,
+          "shadowSize": 4096,
+          "ibl": "outdoor PMREM",
+          "postEffects": 3
+        }
+      },
+      {
+        "quality": "balanced",
+        "timing": {
+          "medianMs": 13.299999999999272,
+          "p95Ms": 13.400000000001455,
+          "meanMs": 13.696969696969697
+        },
+        "renderer": {
+          "calls": 118,
+          "triangles": 970308,
+          "geometries": 69,
+          "textures": 117
+        },
+        "graphics": {
+          "pipeline": "outdoor PBR + shadow map",
+          "rayTracing": false,
+          "ao": false,
+          "aoResolutionScale": 0.6,
+          "volumetric": false,
+          "shadowSize": 1024,
+          "ibl": "outdoor PMREM",
+          "postEffects": 0
+        }
+      },
+      {
+        "quality": "high",
+        "timing": {
+          "medianMs": 13.299999999999272,
+          "p95Ms": 13.400000000001455,
+          "meanMs": 13.295959595959589
+        },
+        "renderer": {
+          "calls": 139,
+          "triangles": 970329,
+          "geometries": 69,
+          "textures": 120
+        },
+        "graphics": {
+          "pipeline": "beauty-depth GTAO + shadow-marched mist + bloom",
+          "rayTracing": false,
+          "ao": true,
+          "aoResolutionScale": 0.6,
+          "volumetric": true,
+          "shadowSize": 2048,
+          "ibl": "outdoor PMREM",
+          "postEffects": 3
+        }
+      }
+    ],
+    "checks": [
+      {
+        "name": "high effects and shadow resolution",
+        "pass": true
+      },
+      {
+        "name": "cinematic effects and shadow resolution",
+        "pass": true
+      },
+      {
+        "name": "balanced effects and shadow resolution",
+        "pass": true
+      },
+      {
+        "name": "high effects and shadow resolution",
+        "pass": true
+      },
+      {
+        "name": "Warmth control and first-person render remain live",
+        "pass": true
+      },
+      {
+        "name": "No GL error after mode switches and resize",
+        "pass": true
+      },
+      {
+        "name": "No shader errors, framebuffer errors or actionable warnings",
+        "pass": true
+      }
+    ],
+    "errors": [],
+    "warnings": [
+      "THREE.WebGLProgram: Program Info Log: (210,81-129): warning X4122: sum of 0.996094 and -2.98545e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(210,82-106): warning X4122: sum of 1 and -1.49272e-017 cannot be represented accurately in double precision\n(209,37-61): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision\n(210,82-106): warning X4122: sum of 1 and -1.66644e-018 cannot be represented accurately in double precision"
+    ]
+  },
+  "production": {
+    "base": "http://127.0.0.1:5192/",
+    "health": {
+      "app": "sakura-walk",
+      "version": "1.3.0"
+    },
+    "debugAbsent": true,
+    "startPauseResume": true,
+    "perspectiveAndGaze": true,
+    "pauseFit": true,
+    "assets": [
+      {
+        "url": "http://127.0.0.1:5192/models/sssi-walker.vrm",
+        "status": 200
+      },
+      {
+        "url": "http://127.0.0.1:5192/models/bbs-companion.vrm",
+        "status": 200
+      }
+    ],
+    "legacyAssets": [],
+    "errors": [],
+    "externalRequests": [],
+    "checkedAt": "2026-09-30T01:47:50.182Z"
+  },
+  "captures": [
+    {
+      "mode": "desktop",
+      "state": "active-play",
+      "runId": "supplied-pair-release",
+      "result": "nonblank",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "metrics": {
+        "colorBuckets": 243,
+        "colorEntropyBits": 6.1,
+        "edgeDensity": 0.555,
+        "luminance": {
+          "mean": 122.9,
+          "p5": 47.3,
+          "p95": 201.3,
+          "contrast": 154.1
+        },
+        "dominantColorShare": 0.121,
+        "nonBackgroundShare": 0.879
+      },
+      "renderBudget": {
+        "tier": "desktop",
+        "note": "starting-point budget; adjust per game and document overrides",
+        "rows": [
+          {
+            "metric": "calls",
+            "actual": 139,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "triangles",
+            "actual": 970329,
+            "limit": 750000,
+            "ok": false
+          },
+          {
+            "metric": "geometries",
+            "actual": 69,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "textures",
+            "actual": 120,
+            "limit": 60,
+            "ok": false
+          }
+        ],
+        "withinBudget": false
+      },
+      "renderer": {
+        "calls": 139,
+        "triangles": 970329,
+        "geometries": 69,
+        "textures": 120
+      }
+    },
+    {
+      "mode": "desktop",
+      "state": "companion-close",
+      "runId": "supplied-pair-release",
+      "result": "nonblank",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "metrics": {
+        "colorBuckets": 273,
+        "colorEntropyBits": 6.32,
+        "edgeDensity": 0.576,
+        "luminance": {
+          "mean": 125.4,
+          "p5": 40.9,
+          "p95": 211.6,
+          "contrast": 170.6
+        },
+        "dominantColorShare": 0.102,
+        "nonBackgroundShare": 0.898
+      },
+      "renderBudget": {
+        "tier": "desktop",
+        "note": "starting-point budget; adjust per game and document overrides",
+        "rows": [
+          {
+            "metric": "calls",
+            "actual": 136,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "triangles",
+            "actual": 969893,
+            "limit": 750000,
+            "ok": false
+          },
+          {
+            "metric": "geometries",
+            "actual": 69,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "textures",
+            "actual": 120,
+            "limit": 60,
+            "ok": false
+          }
+        ],
+        "withinBudget": false
+      },
+      "renderer": {
+        "calls": 136,
+        "triangles": 969893,
+        "geometries": 69,
+        "textures": 120
+      }
+    },
+    {
+      "mode": "desktop",
+      "state": "first-person-together",
+      "runId": "supplied-pair-release",
+      "result": "nonblank",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "metrics": {
+        "colorBuckets": 330,
+        "colorEntropyBits": 6.66,
+        "edgeDensity": 0.561,
+        "luminance": {
+          "mean": 125.1,
+          "p5": 34.8,
+          "p95": 212.1,
+          "contrast": 177.3
+        },
+        "dominantColorShare": 0.075,
+        "nonBackgroundShare": 0.925
+      },
+      "renderBudget": {
+        "tier": "desktop",
+        "note": "starting-point budget; adjust per game and document overrides",
+        "rows": [
+          {
+            "metric": "calls",
+            "actual": 102,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "triangles",
+            "actual": 882761,
+            "limit": 750000,
+            "ok": false
+          },
+          {
+            "metric": "geometries",
+            "actual": 69,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "textures",
+            "actual": 120,
+            "limit": 60,
+            "ok": false
+          }
+        ],
+        "withinBudget": false
+      },
+      "renderer": {
+        "calls": 102,
+        "triangles": 882761,
+        "geometries": 69,
+        "textures": 120
+      }
+    },
+    {
+      "mode": "desktop",
+      "state": "vista",
+      "runId": "supplied-pair-release",
+      "result": "nonblank",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "metrics": {
+        "colorBuckets": 241,
+        "colorEntropyBits": 6.06,
+        "edgeDensity": 0.546,
+        "luminance": {
+          "mean": 127.2,
+          "p5": 51.6,
+          "p95": 197.9,
+          "contrast": 146.2
+        },
+        "dominantColorShare": 0.122,
+        "nonBackgroundShare": 0.878
+      },
+      "renderBudget": {
+        "tier": "desktop",
+        "note": "starting-point budget; adjust per game and document overrides",
+        "rows": [
+          {
+            "metric": "calls",
+            "actual": 139,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "triangles",
+            "actual": 970253,
+            "limit": 750000,
+            "ok": false
+          },
+          {
+            "metric": "geometries",
+            "actual": 69,
+            "limit": 300,
+            "ok": true
+          },
+          {
+            "metric": "textures",
+            "actual": 120,
+            "limit": 60,
+            "ok": false
+          }
+        ],
+        "withinBudget": false
+      },
+      "renderer": {
+        "calls": 139,
+        "triangles": 970253,
+        "geometries": 69,
+        "textures": 120
+      }
+    },
+    {
+      "mode": "mobile",
+      "state": "active-play",
+      "runId": "supplied-pair-release",
+      "result": "nonblank",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 664
+      },
+      "metrics": {
+        "colorBuckets": 219,
+        "colorEntropyBits": 5.91,
+        "edgeDensity": 0.525,
+        "luminance": {
+          "mean": 142,
+          "p5": 68.2,
+          "p95": 226.3,
+          "contrast": 158.1
+        },
+        "dominantColorShare": 0.14,
+        "nonBackgroundShare": 0.86
+      },
+      "renderBudget": {
+        "tier": "mobile",
+        "note": "starting-point budget; adjust per game and document overrides",
+        "rows": [
+          {
+            "metric": "calls",
+            "actual": 139,
+            "limit": 150,
+            "ok": true
+          },
+          {
+            "metric": "triangles",
+            "actual": 970329,
+            "limit": 300000,
+            "ok": false
+          },
+          {
+            "metric": "geometries",
+            "actual": 69,
+            "limit": 200,
+            "ok": true
+          },
+          {
+            "metric": "textures",
+            "actual": 120,
+            "limit": 40,
+            "ok": false
+          }
+        ],
+        "withinBudget": false
+      },
+      "renderer": {
+        "calls": 139,
+        "triangles": 970329,
+        "geometries": 69,
+        "textures": 120
+      }
+    },
+    {
+      "mode": "mobile",
+      "state": "first-person-together",
+      "runId": "supplied-pair-release",
+      "result": "nonblank",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 390,
+        "height": 664
+      },
+      "metrics": {
+        "colorBuckets": 320,
+        "colorEntropyBits": 6.76,
+        "edgeDensity": 0.541,
+        "luminance": {
+          "mean": 143.9,
+          "p5": 52.6,
+          "p95": 229.2,
+          "contrast": 176.6
+        },
+        "dominantColorShare": 0.075,
+        "nonBackgroundShare": 0.925
+      },
+      "renderBudget": {
+        "tier": "mobile",
+        "note": "starting-point budget; adjust per game and document overrides",
+        "rows": [
+          {
+            "metric": "calls",
+            "actual": 102,
+            "limit": 150,
+            "ok": true
+          },
+          {
+            "metric": "triangles",
+            "actual": 882761,
+            "limit": 300000,
+            "ok": false
+          },
+          {
+            "metric": "geometries",
+            "actual": 69,
+            "limit": 200,
+            "ok": true
+          },
+          {
+            "metric": "textures",
+            "actual": 120,
+            "limit": 40,
+            "ok": false
+          }
+        ],
+        "withinBudget": false
+      },
+      "renderer": {
+        "calls": 102,
+        "triangles": 882761,
+        "geometries": 69,
+        "textures": 120
+      }
+    }
+  ]
+}

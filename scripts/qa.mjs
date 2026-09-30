@@ -10,6 +10,7 @@ async function check(name,fn){try{await fn();checks.push({name,pass:true});conso
 async function key(code,duration){await page.keyboard.down(code);await page.waitForTimeout(duration);await page.keyboard.up(code);}
 await page.goto(appUrl);await page.waitForFunction(()=>!!window.__SAKURA__,{timeout:60000});await page.locator('#begin').click();
 await check('Start and gesture audio unlock',async()=>{const s=await snap();assert(s.started);assert.equal(s.audio.state,'running');});
+await check('Both supplied VRM1 avatars replace the sample characters',async()=>{const s=await snap();assert.equal(s.companionModel.asset,'models/bbs-companion.vrm');assert.equal(s.playerModel.asset,'models/sssi-walker.vrm');assert.equal(s.companionModel.format,'VRM1-skinned');assert.equal(s.playerModel.format,'VRM1-skinned');});
 let previous=await snap();await key('KeyW',2600);let walking=await snap();samples.push({event:'forward',state:walking});
 await check('Forward walking responds to real input',()=>assert(walking.player.z-previous.player.z>2));
 await page.screenshot({path:`output-placeholder`.replace('output-placeholder',`${output}/walking.png`)});

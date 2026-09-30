@@ -19,7 +19,7 @@ with ZipFile(target, "w", ZIP_DEFLATED, compresslevel=6) as archive:
 with ZipFile(target) as archive:
     assert archive.testzip() is None
     entries = archive.namelist()
-    for required in ["dist/index.html", "src/main.ts", "public/models/haruka.vrm", "public/models/walker.vrm", "scripts/serve.mjs", "Launch Sakura Walk.cmd", "licenses/VRoid-models.md"]:
+    for required in ["dist/index.html", "src/main.ts", "public/models/bbs-companion.vrm", "public/models/sssi-walker.vrm", "dist/models/bbs-companion.vrm", "dist/models/sssi-walker.vrm", "scripts/serve.mjs", "Launch Sakura Walk.cmd", "licenses/VRoid-models.md", "licenses/User-models.md"]:
         assert "sakura-walk/" + required in entries, required
     assert not any("node_modules/" in name for name in entries)
 checksum = hashlib.sha256(target.read_bytes()).hexdigest()

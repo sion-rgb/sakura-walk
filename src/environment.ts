@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createGranitePaving, createSurfaceRelief, createWaterNormal } from './environment-materials';
 
 /** An authored, instanced spring garden. All textures are generated locally. */
 export interface SakuraEnvironment {
+  diagnostics: Record<string, unknown>;
   update(dt: number, time: number, focus: THREE.Vector3): void;
   colliders: Array<{ x: number; z: number; radius: number }>;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
@@ -72,6 +74,9 @@ function stoneTexture() {
 function barkTexture() {
   const rng = random(812);
   const tex = canvasTexture(512, (c, s) => {
+    // Tube UV.u follows the bough length. Rotate the painting so the grain follows
+    // that axis, while cherry lenticels remain transverse to the wood fibers.
+    c.translate(0, s); c.rotate(-Math.PI / 2);
     c.fillStyle = '#6b514a'; c.fillRect(0, 0, s, s);
     for (let i = 0; i < 200; i++) {
       const x = rng() * s;
@@ -137,12 +142,13 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
   const color = (hex: THREE.ColorRepresentation) => new THREE.Color(hex);
   const material = (hex: THREE.ColorRepresentation, roughness = .86) => new THREE.MeshStandardMaterial({ color: hex, roughness, metalness: 0 });
-  const stone = material('#aea69b'), edgeStone = material('#d0c5b7');
-  const darkStone = material('#817d71'), fenceMat = material('#594b40');
-  const wood = material('#956b51'), darkWood = material('#4d3d37');
+  const stone = material('#a8aaa1'), edgeStone = material('#c3c0b4');
+  const darkStone = material('#777c76'), fenceMat = material('#685348');
+  const wood = material('#947557', .69), darkWood = material('#534337', .81);
   const copper = material('#78604b', .45), vermilion = material('#a84b43');
   const roofMat = material('#535657'), moss = material('#8a9671');
-  const bark = new THREE.MeshStandardMaterial({ color: '#c4aaa1', map: barkTexture(), roughness: .98 });
+  const barkMap = barkTexture();
+  const bark = new THREE.MeshStandardMaterial({ color: '#c5b1a6', map: barkMap, ...createSurfaceRelief(barkMap, .84, 1.6), bumpScale: .09, roughness: .93 });
   const lanternLight = new THREE.MeshStandardMaterial({ color: '#fff3cd', emissive: '#ffd794', emissiveIntensity: .48, roughness: .76 });
   const agedStone = canvasTexture(512, (c, s) => {
     const r = random(813); c.fillStyle = '#bfc0b0'; c.fillRect(0, 0, s, s);
@@ -158,7 +164,8 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     }
   });
   agedStone.wrapS = agedStone.wrapT = THREE.RepeatWrapping;
-  for (const mat of [stone, edgeStone, darkStone]) { mat.map = agedStone; mat.bumpMap = agedStone; mat.bumpScale = .015; }
+  const stoneRelief = createSurfaceRelief(agedStone, .78, 2.1);
+  for (const mat of [stone, edgeStone, darkStone, moss]) { mat.map = agedStone; mat.bumpMap = stoneRelief.bumpMap; mat.roughnessMap = stoneRelief.roughnessMap; mat.bumpScale = .045; mat.roughness = .91; }
   const cedarMap = canvasTexture(256, (c, s) => {
     const r = random(909); c.fillStyle = '#c8ad8e'; c.fillRect(0, 0, s, s);
     for (let i = 0; i < 150; i++) {
@@ -167,7 +174,10 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     }
   });
   cedarMap.wrapS = cedarMap.wrapT = THREE.RepeatWrapping;
-  wood.map = cedarMap; wood.bumpMap = cedarMap; wood.bumpScale = .006;
+  const cedarRelief = createSurfaceRelief(cedarMap, .73, 2.0);
+  for (const mat of [wood, darkWood, fenceMat]) { mat.map = cedarMap; mat.bumpMap = cedarRelief.bumpMap; mat.roughnessMap = cedarRelief.roughnessMap; mat.bumpScale = .027; }
+  copper.metalness = .65; copper.roughness = .42;
+  vermilion.roughness = .57;
 
   function addBaked(geometry: THREE.BufferGeometry, mat: THREE.Material, position = v(0, 0, 0), scale = v(1, 1, 1), rotation = new THREE.Euler()) {
     quat.setFromEuler(rotation); matrix.compose(position, quat, scale); geometry.applyMatrix4(matrix);
@@ -232,8 +242,9 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   groundMap.wrapS = groundMap.wrapT = THREE.RepeatWrapping; groundMap.repeat.set(30, 40);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(320, 340), new THREE.MeshStandardMaterial({ map: groundMap, color: '#b8c499', roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.position.set(0, -.075, 75); ground.receiveShadow = true; root.add(ground);
-  const paving = stoneTexture(); paving.wrapS = paving.wrapT = THREE.RepeatWrapping; paving.repeat.set(1, 29.5);
-  const path = new THREE.Mesh(new THREE.PlaneGeometry(7.25, 220), new THREE.MeshStandardMaterial({ map: paving, bumpMap: paving, bumpScale: .018, roughness: .94, color: '#eddfcc' }));
+  const pavingSurface = createGranitePaving(), paving = pavingSurface.map;
+  const pavingMaterial = new THREE.MeshStandardMaterial({ ...pavingSurface, bumpScale: .050, roughness: .96, color: '#eee9df', envMapIntensity: .55 });
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(7.25, 220), pavingMaterial);
   path.rotation.x = -Math.PI / 2; path.position.set(0, -.009, 56); path.receiveShadow = true; path.name = 'Hand-laid warm granite avenue'; root.add(path);
   const kerbs: Transform[] = [];
   for (let i = 0; i < 204; i++) for (const side of [-1, 1]) {
@@ -259,14 +270,20 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   // these clumps have airy silhouettes at every orbit angle, rather than solid sphere crowns.
   const blossomTransforms: Transform[][] = [[], [], []];
   const shadeTransforms: Transform[] = [];
+  const canopyShadowTransforms: Transform[] = [];
   const crownMaterials = [103, 304, 715].map((seed, i) => {
-    const mat = new THREE.MeshLambertMaterial({ map: blossomTexture(seed), color: ['#ffeaf1', '#ffd3e1', '#fff0e9'][i], alphaTest: .37, side: THREE.DoubleSide, emissive: '#774251', emissiveIntensity: .07 });
+    const mat = new THREE.MeshLambertMaterial({ map: blossomTexture(seed), color: ['#ffdfed', '#f7c4d9', '#fff0e3'][i], alphaTest: .42, side: THREE.DoubleSide, emissive: '#9d6678', emissiveIntensity: .035 });
     wind(mat, .065, `sakura-blossom-wind-${i}`); return mat;
   });
   const crownCard = new THREE.PlaneGeometry(1, 1, 1, 1);
   const cardPositions = crownCard.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < cardPositions.count; i++) cardPositions.setZ(i, Math.cos(cardPositions.getX(i) * 3) * Math.cos(cardPositions.getY(i) * 3) * .12);
-  crownCard.computeVertexNormals();
+  // Soft volume normals keep crossing blossom sprays from shading as flat cards.
+  const crownNormals = crownCard.attributes.normal as THREE.BufferAttribute;
+  for (let i = 0; i < cardPositions.count; i++) {
+    const normal = v(cardPositions.getX(i) * .85, cardPositions.getY(i) * .65, .72).normalize();
+    crownNormals.setXYZ(i, normal.x, normal.y, normal.z);
+  }
   function blossomClump(p: THREE.Vector3, size: number, variant: number) {
     for (let cross = 0; cross < 3; cross++) {
       blossomTransforms[variant].push({ position: p.clone(), scale: v(size * (1 + rng() * .24), size * (.75 + rng() * .25), size), rotation: new THREE.Euler(rng() * 1.5 - .75, cross * Math.PI / 3 + rng() * .4, rng() * 1.3 - .65), color: color('#ffffff').multiplyScalar(.86 + rng() * .17) });
@@ -276,6 +293,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     const r = random(seed), inward = x > 0 ? -1 : 1;
     const base = v(x, 0, z), lean = inward * (.42 + r() * .75), twist = (r() - .5) * .6;
     const crown = v(x + lean, 4.20 * scale, z + (r() - .5) * .8);
+    canopyShadowTransforms.push({ position: v(x + lean + inward * 1.05, 4.7 * scale, z), scale: v(5.7 * scale, 5.0 * scale, 1), rotation: new THREE.Euler(-Math.PI / 2, 0, seed * .39) });
     shadeTransforms.push({ position: v(x + inward * 1.6, -.002, z + 1.1), scale: v(7.8 * scale, 8.6 * scale, 1), rotation: new THREE.Euler(-Math.PI / 2, 0, r() * 6.28) });
     branch([base, v(x - inward * .13, .72 * scale, z + twist), v(x + lean * .24, 1.8 * scale, z + twist * .5), v(x + lean * .7, 3.16 * scale, z - twist), crown], [.40 * scale, .25 * scale, .21 * scale, .09 * scale], 13, 9);
     colliders.push({ x, z, radius: .48 });
@@ -337,6 +355,11 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     tree(side * (13.5 + rng() * 5), 4 + i * 15.3, .83 + rng() * .12, 2100 + i);
   }
   blossomTransforms.forEach((transforms, i) => instance(`Sakura flowering branches ${i + 1}`, crownCard, crownMaterials[i], transforms, false));
+  const canopyShadowMat = new THREE.MeshBasicMaterial({ map: crownMaterials[0].map, alphaTest: .52, side: THREE.DoubleSide, colorWrite: false, depthWrite: false, transparent: true, opacity: 0 });
+  const canopyShadow = instance('Sakura canopy shadow filters', new THREE.PlaneGeometry(1, 1), canopyShadowMat, canopyShadowTransforms, true);
+  canopyShadow.receiveShadow = false;
+  canopyShadow.customDepthMaterial = new THREE.MeshDepthMaterial({ map: crownMaterials[0].map, alphaTest: .52, side: THREE.DoubleSide, depthPacking: THREE.RGBADepthPacking });
+  canopyShadow.userData.noAtmosphereDepth = true;
   const shadeTexture = canvasTexture(256, (c, s) => {
     const r = random(342); c.filter = 'blur(4px)';
     for (let i = 0; i < 165; i++) {
@@ -346,7 +369,8 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     }
     c.filter = 'none';
   });
-  instance('Soft dappled canopy shade', new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadeTexture, transparent: true, depthWrite: false, opacity: .31, polygonOffset: true, polygonOffsetFactor: -1 }), shadeTransforms);
+  const bakedShade = instance('Soft dappled canopy shade', new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadeTexture, transparent: true, depthWrite: false, opacity: .12, polygonOffset: true, polygonOffsetFactor: -1 }), shadeTransforms);
+  bakedShade.userData.noAtmosphereDepth = true;
 
   // Layered leafy understory closes the side and backward horizons. Different
   // heights and olive / sage tones provide depth behind the flowering avenue.
@@ -382,7 +406,59 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
       }
     }
   }
-  instance('Layered leafy woodland and soft understory', crownCard, leafMat, leafy);
+  // Rounded, uneven shrub masses give the background actual depth. Only the near
+  // shrubs carry leaf cutouts, so the distant horizon has no repeating square cards.
+  const shrubGeo = new THREE.IcosahedronGeometry(.5, 2);
+  const shrubPositions = shrubGeo.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < shrubPositions.count; i++) {
+    const x = shrubPositions.getX(i), y = shrubPositions.getY(i), z = shrubPositions.getZ(i);
+    const lobe = 1 + Math.sin(x * 13 + z * 5) * .10 + Math.sin(y * 11 - z * 7) * .09;
+    shrubPositions.setXYZ(i, x * lobe, y * lobe, z * lobe);
+  }
+  shrubGeo.computeVertexNormals();
+  const shrubNormals = shrubGeo.attributes.normal as THREE.BufferAttribute;
+  for (let i = 0; i < shrubNormals.count; i++) {
+    const n = v(shrubPositions.getX(i), shrubPositions.getY(i) * 1.12, shrubPositions.getZ(i)).normalize();
+    shrubNormals.setXYZ(i, n.x, n.y, n.z);
+  }
+  const shrubTexture = canvasTexture(512, (c, s) => {
+    const r = random(51294); c.fillStyle = '#708567'; c.fillRect(0, 0, s, s);
+    for (let i = 0; i < 5800; i++) {
+      const x = r() * s, y = r() * s, length = 3 + r() * 7;
+      c.save(); c.translate(x, y); c.rotate(r() * 6.28);
+      c.fillStyle = `hsl(${85 + r() * 18} ${18 + r() * 12}% ${29 + r() * 25}%)`;
+      c.beginPath(); c.ellipse(0, 0, length, length * .42, 0, 0, 6.28); c.fill();
+      if (i % 4 === 0) { c.strokeStyle = 'rgba(197,210,153,.23)'; c.lineWidth = .65; c.beginPath(); c.moveTo(-length + 1, 0); c.lineTo(length - 1, 0); c.stroke(); }
+      c.restore();
+    }
+  });
+  shrubTexture.wrapS = shrubTexture.wrapT = THREE.RepeatWrapping; shrubTexture.repeat.set(3, 2);
+  const shrubMat = new THREE.MeshLambertMaterial({ color: '#8d9d7f', map: shrubTexture });
+  wind(shrubMat, .015, 'rounded-understory-volume-wind');
+  const shrubVolumes = leafy.filter((_, index) => index % 6 === 0).map(t => {
+    const scale = t.scale.clone();
+    scale.y = Math.max(scale.y, t.position.y * 1.85);
+    // Every supporting crown extends into the soil, including the taller back
+    // rows. This prevents disconnected foliage balls above the horizon.
+    const position = t.position.clone(); position.y = scale.y * .36;
+    return {...t, position, scale, rotation:new THREE.Euler(0,t.rotation?.y ?? 0,0)};
+  });
+  instance('Rounded woodland understory masses', shrubGeo, shrubMat, shrubVolumes);
+  // Small sprays break up the contour of each supporting volume. Their normals
+  // point out from the canopy, so the light reads as leaves around a living crown.
+  const edgeLeaves: Transform[] = [], shellRandom = random(78311);
+  const up = v(0, 0, 1), q = new THREE.Quaternion();
+  for (const cluster of shrubVolumes) {
+    for (let i = 0; i < 44; i++) {
+      const ny = 1 - 2 * (i + .5) / 44, a = i * 2.399963 + shellRandom() * .3;
+      const radius = Math.sqrt(1 - ny * ny), n = v(Math.cos(a) * radius, ny, Math.sin(a) * radius);
+      const p = n.clone().multiply(cluster.scale).multiplyScalar(.48 + shellRandom() * .07).add(cluster.position);
+      const size = .78 + shellRandom() * .45 + Math.min(cluster.scale.x, 4) * .17;
+      q.setFromUnitVectors(up, n);
+      edgeLeaves.push({position:p, scale:v(size,size,size), rotation:new THREE.Euler().setFromQuaternion(q), color:cluster.color});
+    }
+  }
+  instance('Individual woodland leaf sprays', crownCard, leafMat, edgeLeaves);
 
   // A planted border has soil, low leaves, flowers and taller fern silhouettes.
   // Its irregular outline follows the verge without intruding on the walking lane.
@@ -394,7 +470,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     }
   });
   mulchMap.wrapS = mulchMap.wrapT = THREE.RepeatWrapping; mulchMap.repeat.set(.8, .8);
-  const mulchMat = new THREE.MeshStandardMaterial({ map: mulchMap, color: '#c2c59d', roughness: 1 });
+  const mulchMat = new THREE.MeshStandardMaterial({ map: mulchMap, ...createSurfaceRelief(mulchMap, .95, 1.8), bumpScale: .035, color: '#b1b48d', roughness: 1 });
   for (const side of [-1, 1]) {
     const bed = new THREE.Shape();
     for (let z = -42; z <= 166; z += 2) {
@@ -501,7 +577,8 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     if (row < 110) { const i = row * 2; waterIndices.push(i, i + 2, i + 1, i + 1, i + 2, i + 3); }
   }
   waterGeo.setAttribute('position', new THREE.Float32BufferAttribute(waterVertices, 3)); waterGeo.setAttribute('uv', new THREE.Float32BufferAttribute(waterUvs, 2)); waterGeo.setIndex(waterIndices); waterGeo.computeVertexNormals();
-  const waterMat = new THREE.MeshStandardMaterial({ map: waterMap, color: '#b9d5c2', metalness: .24, roughness: .26 });
+  const waterNormal = createWaterNormal();
+  const waterMat = new THREE.MeshPhysicalMaterial({ map: waterMap, normalMap: waterNormal, normalScale: new THREE.Vector2(.75, .75), color: '#91b9ae', metalness: 0, roughness: .14, ior: 1.333, clearcoat: 1, clearcoatRoughness: .10, clearcoatNormalMap: waterNormal, clearcoatNormalScale: new THREE.Vector2(.4, .4), envMapIntensity: 1.4 });
   const water = new THREE.Mesh(waterGeo, waterMat); water.name = 'The spring rill · soft travelling ripples'; water.receiveShadow = true; root.add(water);
 
   // Hand-shaped grasses: nine bending blades per tuft, one instanced draw.
@@ -586,7 +663,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   instance('Fallen sakura petals · wind-sorted drifts', petalGeo, new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), groundPetals);
 
   // The avenue has a destination, but no objective: a quiet torii and a little shrine beyond.
-  const plaza = new THREE.Mesh(new THREE.CircleGeometry(6.4, 64), new THREE.MeshStandardMaterial({ map: paving, color: '#dfd2c2', roughness: .96 }));
+  const plaza = new THREE.Mesh(new THREE.CircleGeometry(6.4, 64), pavingMaterial);
   plaza.rotation.x = -Math.PI / 2; plaza.position.set(0, -.004, 159); plaza.receiveShadow = true; root.add(plaza);
   function curvedBeam(width: number, height: number, depth: number, x: number, y: number, z: number, mat: THREE.Material) {
     const shape = new THREE.Shape(); shape.moveTo(-width / 2, 0);
@@ -625,15 +702,17 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   box(copper, 0, 3.99, 188, .18, .12, 4.12);
 
   // Rolling sage hills and scattered dark evergreens establish distant scenery.
-  const hillGeo = new THREE.PlaneGeometry(310, 260, 32, 32); hillGeo.rotateX(-Math.PI / 2);
+  const hillGeo = new THREE.PlaneGeometry(310, 330, 48, 44); hillGeo.rotateX(-Math.PI / 2);
   const hp = hillGeo.attributes.position as THREE.BufferAttribute;
   const hillColors: number[] = [];
   for (let i = 0; i < hp.count; i++) {
     const x = hp.getX(i), z = hp.getZ(i);
     const edge = THREE.MathUtils.smoothstep(Math.abs(x), 18, 75);
-    const h = edge * (4 + Math.sin(x * .058 + z * .015) * 4 + Math.sin(z * .054 + x * .038) * 3.3);
+    const backRidge = THREE.MathUtils.smoothstep(z + 94, 194, 245);
+    const h = edge * (4 + Math.sin(x * .058 + z * .015) * 4 + Math.sin(z * .054 + x * .038) * 3.3)
+      + backRidge * (17 + Math.sin(x * .038 + 1) * 6 + Math.sin(x * .081) * 3);
     hp.setY(i, h - .18);
-    const c = color('#a4b49a').lerp(color('#c4c7a8'), Math.max(0, h / 12)); hillColors.push(c.r, c.g, c.b);
+    const c = color('#829983').lerp(color('#a1b2a0'), THREE.MathUtils.clamp(h / 24, 0, 1)).lerp(color('#657f7d'), backRidge * .65); hillColors.push(c.r, c.g, c.b);
   }
   hillGeo.computeVertexNormals(); hillGeo.setAttribute('color', new THREE.Float32BufferAttribute(hillColors, 3));
   const hills = new THREE.Mesh(hillGeo, new THREE.MeshLambertMaterial({ vertexColors: true })); hills.position.z = 94; hills.receiveShadow = true; root.add(hills);
@@ -737,12 +816,15 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     groundPetals: groundPetals.length, flyingPetals: flyingCount, grassTufts: grassTransforms.length,
     materials: environmentMaterials.size, meshes: environmentMeshes, textures: environmentTextures.size, triangles: Math.round(environmentTriangles),
     perennialPlants: plantRows.reduce((n, list) => n + list.length / 2, 0), fernClusters: fernTransforms.length, gardenStones: rockTransforms.length,
-    note: 'Asymmetric curved boughs, varied ashlar, planting beds, anemones, ferns and a shallow side rill. All repeated foliage, stones and borders instanced; structural geometry merged.'
+    canopyShadowFilters: canopyShadowTransforms.length, roundedShrubs: shrubVolumes.length,
+    note: 'Bevelled granite relief and mineral roughness, weathered bark/cedar, rounded woodland masses, alpha-cut real canopy shadows, planted beds and physical reflective rill. Repeated surfaces are instanced; structures are merged.'
   };
   return {
+    diagnostics: root.userData.diagnostics,
     update(_dt: number, time: number, _focus: THREE.Vector3) {
       flyingMat.uniforms.uTime.value = time;
       waterMap.offset.y = time * .008;
+      waterNormal.offset.set(time * .004, time * .012);
       for (const mat of animatedMaterials) if (mat.userData.shader) mat.userData.shader.uniforms.uGardenTime.value = time;
     },
     colliders,

@@ -1,9 +1,6 @@
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { createLighting } from './lighting';
+import { createRenderPipeline } from './render-pipeline';
 import { createCharacter, type Character } from './character';
 import { createEnvironment } from './environment';
 import { Soundscape } from './audio';
@@ -26,19 +23,15 @@ async function boot(){
  const canvas=$<HTMLCanvasElement>('world');
  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:true});
  renderer.setClearColor(0xf2e2d9);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
- renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
- renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.info.autoReset=false;
+ renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
+ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;renderer.info.autoReset=false;
  const scene=new THREE.Scene();scene.background=new THREE.Color('#eddcda');scene.fog=new THREE.FogExp2('#ead2d0',.009);
  const camera=new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.08,230);
- const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment();const env=pmrem.fromScene(room,.08);scene.environment=env.texture;scene.environmentIntensity=.25;room.dispose();pmrem.dispose();
- const hemi=new THREE.HemisphereLight('#ffede0','#728782',1.35);scene.add(hemi);
- const sun=new THREE.DirectionalLight('#ffdfb2',2.25);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-14,right:14,top:15,bottom:-13,near:1,far:42});sun.shadow.bias=-.00028;sun.shadow.normalBias=.035;sun.shadow.radius=3;scene.add(sun,sun.target);
- const fill=new THREE.DirectionalLight('#e8e4ff',.45);fill.position.set(7,5,-9);scene.add(fill);
- const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{top:{value:new THREE.Color('#a8c8ce')},bottom:{value:new THREE.Color('#fff1da')}},vertexShader:'varying vec3 vP; void main(){vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 vP; uniform vec3 top; uniform vec3 bottom; void main(){float h=clamp(normalize(vP).y,0.,1.);vec3 c=mix(bottom,top,pow(h,.6));gl_FragColor=vec4(c,1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}'}));sky.renderOrder=-10;scene.add(sky);
+ const lighting=createLighting(renderer,scene),sun=lighting.sun;
+ lighting.setWarmth(Number($<HTMLInputElement>('sunlight').value)/100);
  const world=createEnvironment(scene);
  const [player,companion]=await Promise.all([createCharacter('player'),createCharacter('companion')]);scene.add(player.root,companion.root);
- const composer=new EffectComposer(renderer);composer.renderTarget1.samples=4;composer.renderTarget2.samples=4;composer.addPass(new RenderPass(scene,camera));
- const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.16,.48,1.1);composer.addPass(bloom);composer.addPass(new OutputPass());
+ const graphics=createRenderPipeline(renderer,scene,camera,sun);
  let quality='high',started=false,paused=false,photo=false,frozen=false,reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  let elapsed=0,frame=0,accumulator=0,autoWalk=false,greeting=0,nextRemark=15,captionLeft=0,toastLeft=0;
  let playerYaw=0,companionYaw=0,yaw=Math.PI+.17,yawTarget=yaw,elevation=.17,elevationTarget=.17,distance=5.6,distanceTarget=5.6;
@@ -115,7 +108,7 @@ async function boot(){
    else cameraPoint.copy(camera.position).add(new THREE.Vector3(Math.sin(firstYaw)*Math.cos(firstPitch),Math.sin(firstPitch),Math.cos(firstYaw)*Math.cos(firstPitch)));
    const lookMatrix=new THREE.Matrix4().lookAt(camera.position,cameraPoint,camera.up),lookQuaternion=new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
    camera.quaternion.slerp(lookQuaternion,instant?1:1-Math.exp(-dt*10));focus.copy(player.root.position);focus.y=1.15;
-   sun.position.set(focus.x-7,11,focus.z+5);sun.target.position.set(focus.x,0,focus.z);sun.target.updateMatrixWorld();sky.position.set(focus.x,0,focus.z);return;
+   lighting.update(focus);return;
   }
   target.copy(player.root.position).add(companion.root.position).multiplyScalar(.5);target.y=1.15;
   focus.lerp(target,factor);
@@ -126,18 +119,18 @@ async function boot(){
   cameraPoint.y=Math.max(1.8,cameraPoint.y);cameraPoint.x=clamp(cameraPoint.x,-4.05,4.05);cameraPoint.z=clamp(cameraPoint.z,-14,172);
   for(const c of world.colliders){const dx=cameraPoint.x-c.x,dz=cameraPoint.z-c.z;const rr=c.radius+.28;if(dx*dx+dz*dz<rr*rr){const len=Math.max(.001,Math.hypot(dx,dz));cameraPoint.x=c.x+dx/len*rr;cameraPoint.z=c.z+dz/len*rr;}}
   camera.position.copy(cameraPoint);camera.lookAt(focus);
-  sun.position.set(focus.x-7,11,focus.z+5);sun.target.position.set(focus.x,0,focus.z);sun.target.updateMatrixWorld();sky.position.set(focus.x,0,focus.z);
+  lighting.update(focus);
  }
- function resize(){const w=innerWidth,h=innerHeight;camera.aspect=w/h;camera.fov=cameraMode==='first'?firstFov:w/h<.8?52:43;camera.updateProjectionMatrix();const dpr=Math.min(devicePixelRatio,quality==='high'?1.5:1);renderer.setPixelRatio(dpr);renderer.setSize(w,h);composer.setPixelRatio(dpr);composer.setSize(w,h);}
- function savePhoto(){renderer.info.reset();composer.render();const output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;const ctx=output.getContext('2d')!;ctx.drawImage(canvas,0,0);ctx.fillStyle='rgba(255,248,237,.9)';ctx.font=`${Math.max(14,output.width*.011)}px Georgia`;ctx.textAlign='right';ctx.fillText('Sakura Walk  /  a little further, together',output.width-35,output.height-30);output.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sakura-walk-moment.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('A little piece of spring, saved.');},'image/png');}
+ function resize(){const w=innerWidth,h=innerHeight;camera.aspect=w/h;camera.fov=cameraMode==='first'?firstFov:w/h<.8?52:43;camera.updateProjectionMatrix();const dpr=Math.min(devicePixelRatio,quality==='cinematic'?2:quality==='high'?1.5:1);renderer.setPixelRatio(dpr);renderer.setSize(w,h);graphics.resize(w,h,dpr);}
+ function savePhoto(){renderer.info.reset();graphics.render();const output=document.createElement('canvas');output.width=canvas.width;output.height=canvas.height;const ctx=output.getContext('2d')!;ctx.drawImage(canvas,0,0);ctx.fillStyle='rgba(255,248,237,.9)';ctx.font=`${Math.max(14,output.width*.011)}px Georgia`;ctx.textAlign='right';ctx.fillText('Sakura Walk  /  a little further, together',output.width-35,output.height-30);output.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sakura-walk-moment.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('A little piece of spring, saved.');},'image/png');}
  $('begin').addEventListener('click',()=>start());$('greet').addEventListener('click',greet);$('touch-greet').addEventListener('click',greet);$('stroll').addEventListener('click',()=>setAuto(!autoWalk));$('touch-stroll').addEventListener('click',()=>setAuto(!autoWalk));
  $('sound').addEventListener('click',()=>{audio.setMuted(!audio.muted);syncSound();});$('pause').addEventListener('click',()=>setPause(true));$('photo').addEventListener('click',()=>photoMode(true));$('exit-photo').addEventListener('click',()=>photoMode(false));$('save-photo').addEventListener('click',savePhoto);
  $('resume').addEventListener('click',e=>{e.preventDefault();setPause(false);canvas.focus();});settings.addEventListener('cancel',e=>{e.preventDefault();setPause(false);});$('reset').addEventListener('click',()=>{reset();setPause(false);say("Here we are, at the beginning again.");});
  $('view').addEventListener('click',()=>setCameraMode(cameraMode==='first'?'third':'first'));$('camera-view').addEventListener('change',e=>setCameraMode((e.target as HTMLSelectElement).value as CameraMode));$('look').addEventListener('click',()=>setLook(!lookTogether));$('touch-look').addEventListener('click',()=>setLook(!lookTogether));
  $('volume').addEventListener('input',e=>audio.setVolume(Number((e.target as HTMLInputElement).value)/100));$('music').addEventListener('change',e=>audio.music=(e.target as HTMLInputElement).checked);
  $<HTMLInputElement>('reduced').checked=reduced;$('reduced').addEventListener('change',e=>reduced=(e.target as HTMLInputElement).checked);
- $('sunlight').addEventListener('input',e=>{const v=Number((e.target as HTMLInputElement).value)/100;sun.color.set('#fff0d2').lerp(new THREE.Color('#ffbc87'),v);sun.intensity=2.7-v*.45;scene.fog!.color.set('#eddddd').lerp(new THREE.Color('#efd2c7'),v);});
- $('quality').addEventListener('change',e=>{quality=(e.target as HTMLSelectElement).value;bloom.enabled=quality==='high';sun.shadow.mapSize.setScalar(quality==='high'?2048:1024);sun.shadow.map?.dispose();sun.shadow.map=null;resize();});
+ $('sunlight').addEventListener('input',e=>lighting.setWarmth(Number((e.target as HTMLInputElement).value)/100));
+ $('quality').addEventListener('change',e=>{quality=(e.target as HTMLSelectElement).value;graphics.setQuality(quality);lighting.setQuality(quality);resize();});
  document.querySelector('.brand')!.addEventListener('click',e=>{e.preventDefault();if(started)setPause(true);});
  const movementCodes=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
  window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target as HTMLElement)?.tagName))return;if(e.code==='Escape'){e.preventDefault();if(photo)photoMode(false);else if(started)setPause(!paused);return;}if(paused||!started)return;if(movementCodes.includes(e.code)){e.preventDefault();if(!photo){keys.add(e.code);setAuto(false);}}if(e.repeat)return;if(e.code==='KeyV'){e.preventDefault();setCameraMode(cameraMode==='first'?'third':'first');}if(e.code==='KeyQ'){e.preventDefault();setLook(!lookTogether);}if(e.code==='KeyP'){e.preventDefault();photoMode(!photo);}if(photo)return;if(e.code==='Space'){e.preventDefault();setAuto(!autoWalk);}if(e.code==='KeyE')greet();if(e.code==='KeyM'){audio.setMuted(!audio.muted);syncSound();}});
@@ -149,7 +142,7 @@ async function boot(){
  joystick.addEventListener('pointerdown',e=>{stickId=e.pointerId;joystick.setPointerCapture(e.pointerId);setAuto(false);moveStick(e);});joystick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)moveStick(e);});for(const event of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(event,()=>{stickId=null;touch.set(0,0);$('stick').style.transform='';});
  window.addEventListener('resize',resize);reset();resize();$('begin-label').textContent='Walk with Haruka';$<HTMLButtonElement>('begin').disabled=false;
  const debug=new URLSearchParams(location.search).has('qa');
- const diagnostics=()=>({frame,elapsed,started,paused,photo,autoWalk,traveled,cameraMode,lookTogether,companionLook,playerVisible:player.root.visible,player:{x:player.root.position.x,y:0,z:player.root.position.z,yaw:playerYaw,speed:velocity.length()},companion:{x:companion.root.position.x,y:0,z:companion.root.position.z,yaw:companionYaw,speed:compVelocity.length(),separation:player.root.position.distanceTo(companion.root.position),greeting},camera:{x:camera.position.x,y:camera.position.y,z:camera.position.z,elevation,distance,yaw,firstYaw,firstPitch,fov:camera.fov},audio:audio.diagnostics,fps:1000/frameMs,quality,playerModel:player.root.userData.character,companionModel:companion.root.userData.character,seed:seedValue,physics:{engine:'kinematic circle collision',timestep:1/60,colliders:world.colliders.length},renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}});
+ const diagnostics=()=>({frame,elapsed,started,paused,photo,autoWalk,traveled,cameraMode,lookTogether,companionLook,playerVisible:player.root.visible,player:{x:player.root.position.x,y:0,z:player.root.position.z,yaw:playerYaw,speed:velocity.length()},companion:{x:companion.root.position.x,y:0,z:companion.root.position.z,yaw:companionYaw,speed:compVelocity.length(),separation:player.root.position.distanceTo(companion.root.position),greeting},camera:{x:camera.position.x,y:camera.position.y,z:camera.position.z,elevation,distance,yaw,firstYaw,firstPitch,fov:camera.fov},audio:audio.diagnostics,fps:1000/frameMs,quality,graphics:graphics.diagnostics(),environment:world.diagnostics,playerModel:player.root.userData.character,companionModel:companion.root.userData.character,seed:seedValue,physics:{engine:'kinematic circle collision',timestep:1/60,colliders:world.colliders.length},renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}});
  if(debug){const win=window as unknown as Record<string,unknown>;win.__THREE_GAME_DIAGNOSTICS__={get renderer(){return diagnostics().renderer;},get state(){return diagnostics();}};win.__SAKURA__={state:diagnostics};win.__THREE_GAME_TEST_HOOKS__={seed:(n:number)=>{seedValue=n;elapsed=0;nextRemark=15;sayingIndex=0;},setReducedMotion:(v:boolean)=>reduced=v,hideDebugUi:()=>{},setPausedForScreenshot:(v:boolean)=>{frozen=v;accumulator=0;},setState:async(name:string)=>{
    if(!['active-play','companion-close','vista','pause','welcome','first-person','first-person-together'].includes(name))throw new Error(`Unsupported capture state: ${name}`);frozen=false;photo=false;document.body.classList.remove('photo-mode');$('photo-tools').hidden=true;setPause(false);setCameraMode('third',false);reset();
    if(name==='welcome'){started=false;document.body.classList.remove('started');$('welcome').hidden=false;$('controls').hidden=true;$('top-actions').hidden=true;$('touch-controls').hidden=true;}else{start(false);}
@@ -158,7 +151,7 @@ async function boot(){
    if(name==='vista'){player.root.position.z=140;companion.root.position.z=140.1;elapsed=15;player.update(1,elapsed,0);companion.update(1,elapsed,0,-.3);}
    if(name==='first-person'||name==='first-person-together'){player.root.position.set(-.62,0,14);companion.root.position.set(.54,0,14.22);elapsed=9;setCameraMode('first',false);lookTogether=name==='first-person-together';companion.root.rotation.y=-.45;for(let i=0;i<100;i++){player.update(1/60,9+i/60,0);companion.update(1/60,9+i/60,0,-.9,true);}syncView();}
    $('caption').classList.remove('visible');captionLeft=0;focus.copy(player.root.position).add(companion.root.position).multiplyScalar(.5);focus.y=1.15;world.update(0,elapsed,focus);cameraUpdate(1,true);if(name==='pause')setPause(true);return {state:name};}};}
- function animate(now:number){requestAnimationFrame(animate);const raw=Math.min((now-lastFrame)/1000,.1);lastFrame=now;frameMs=damp(frameMs,Math.min(raw*1000,100),2,raw);if(!paused&&!photo&&!frozen){accumulator+=raw;while(accumulator>=1/60){step(1/60);accumulator-=1/60;}}else accumulator=0;if(!frozen)cameraUpdate(raw);renderer.info.reset();if(quality==='high')composer.render();else renderer.render(scene,camera);}
+ function animate(now:number){requestAnimationFrame(animate);const raw=Math.min((now-lastFrame)/1000,.1);lastFrame=now;frameMs=damp(frameMs,Math.min(raw*1000,100),2,raw);if(!paused&&!photo&&!frozen){accumulator+=raw;while(accumulator>=1/60){step(1/60);accumulator-=1/60;}}else accumulator=0;if(!frozen)cameraUpdate(raw);renderer.info.reset();graphics.render();}
  requestAnimationFrame(animate);
 }
 boot().catch(error=>{console.error(error);$('error').hidden=false;$('error').textContent=`The walk couldn't start. Please use a modern browser with WebGL enabled. ${error instanceof Error?error.message:String(error)}`;});

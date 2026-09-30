@@ -425,6 +425,11 @@ export async function inspectPage(page, args) {
   try {
     await page.goto(args.url, { waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { state: 'visible', timeout: 10_000 });
+    // Network idle can precede VRM decode, material compilation and game boot.
+    // A named capture must wait for the actual state interface to be ready.
+    if (args.state !== null || args.seed !== undefined) {
+      await page.waitForFunction(() => !!window.__THREE_GAME_TEST_HOOKS__, null, { timeout: 60_000 });
+    }
     const applied = await prepareCapture(page, args);
     report.state = applied.appliedState;
     report.appliedState = applied.appliedState;
