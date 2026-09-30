@@ -9,47 +9,43 @@ function finish(canvas: HTMLCanvasElement, color = false) {
   return texture;
 }
 
-function noise(x: number, y: number, salt = 0) {
-  const n = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
-  return n - Math.floor(n);
+const loadedMaps = new Map<string, THREE.Texture>();
+const pendingMaps: Promise<THREE.Texture>[] = [];
+function localMap(name: string, repeatX: number, repeatY: number, color = false) {
+  const existing = loadedMaps.get(name); if (existing) return existing;
+  let resolve!: (texture: THREE.Texture) => void, reject!: (error: unknown) => void;
+  pendingMaps.push(new Promise((ok, fail) => { resolve = ok; reject = fail; }));
+  const texture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}textures/${name}.jpg`, resolve, undefined, reject);
+  texture.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(repeatX, repeatY); texture.anisotropy = 8;
+  loadedMaps.set(name, texture); return texture;
 }
-
-function smoothNoise(x: number, y: number, salt = 0) {
-  const ix = Math.floor(x), iy = Math.floor(y);
-  const fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-  return THREE.MathUtils.lerp(THREE.MathUtils.lerp(noise(ix, iy, salt), noise(ix + 1, iy, salt), sx), THREE.MathUtils.lerp(noise(ix, iy + 1, salt), noise(ix + 1, iy + 1, salt), sx), sy);
+function surface(prefix: string, x: number, y: number) {
+  return { map: localMap(`${prefix}-albedo`, x, y, true), normalMap: localMap(`${prefix}-normal`, x, y), roughnessMap: localMap(`${prefix}-roughness`, x, y), aoMap: localMap(`${prefix}-ao`, x, y) };
 }
+export function createGranitePaving() { return surface('path', 7.25 / 1.8, 220 / 1.8); }
+export function createGrassSurface() { return surface('grass', 320 / 1.8, 340 / 1.8); }
+export async function waitForEnvironmentTextures() { await Promise.all(pendingMaps); }
 
-/** Bevelled ashlar: darker recessed mortar, mineral flecks, a few hairline chips. */
-export function createGranitePaving() {
-  const size = 1024;
-  const canvases = Array.from({ length: 3 }, () => {
-    const c = document.createElement('canvas'); c.width = c.height = size; return c;
-  });
-  const contexts = canvases.map(c => c.getContext('2d')!);
-  const images = contexts.map(c => c.createImageData(size, size));
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const row = Math.floor(y / 128), shifted = (x + (row % 2) * 64) % size, col = Math.floor(shifted / 128);
-    const dx = shifted % 128, dy = y % 128, edge = Math.min(dx, dy, 128 - dx, 128 - dy);
-    const stoneSeed = noise(col, row, 39), mineral = smoothNoise(x / 14, y / 14, 52), grain = noise(x, y, 11);
-    const chip = Math.max(0, .66 - smoothNoise(x / 6, y / 6, 5)) * 5;
-    const bevel = THREE.MathUtils.smoothstep(edge, .65 + chip * .22, 3.1 + chip * .40);
-    const pore = grain < .024 ? -.11 : grain > .971 ? .06 : (grain - .5) * .033;
-    const tint = .47 + stoneSeed * .14 + (mineral - .5) * .060 + pore;
-    const mortar = .34 + mineral * .07;
-    const value = THREE.MathUtils.lerp(mortar, tint, bevel);
-    const h = .32 + bevel * .31 + (mineral - .5) * .08 + pore * .30;
-    const roughness = THREE.MathUtils.lerp(.98, .70 + mineral * .19 + grain * .06, bevel);
-    const offset = (y * size + x) * 4;
-    // Cool mineral shadows and warm worn faces stay below clipping under golden light.
-    images[0].data.set([value * 255 * 1.04, value * 255 * 1.00, value * 255 * .92, 255], offset);
-    images[1].data.set([h * 255, h * 255, h * 255, 255], offset);
-    images[2].data.set([roughness * 255, roughness * 255, roughness * 255, 255], offset);
-  }
-  contexts.forEach((context, i) => context.putImageData(images[i], 0, 0));
-  const [map, bumpMap, roughnessMap] = canvases.map((canvas, i) => finish(canvas, i === 0));
-  for (const tex of [map, bumpMap, roughnessMap]) tex.repeat.set(1, 29.5);
-  return { map, bumpMap, roughnessMap };
+/** Sparse damp patches at night, with rough stone retained between them. */
+export function configurePavingMaterial(material: THREE.MeshStandardMaterial) {
+  material.normalScale.set(.65, .65); material.aoMapIntensity = .72;
+  const night = { value: 0 };
+  material.userData.setNight = (amount: number) => { night.value = amount; };
+  material.customProgramCacheKey = () => 'sakura-paving-damp-v1';
+  material.onBeforeCompile = shader => {
+    shader.uniforms.pavingNight = night;
+    shader.vertexShader = 'varying vec3 pavingWorld;\n' + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\npavingWorld=(modelMatrix*vec4(transformed,1.)).xyz;');
+    shader.fragmentShader = 'varying vec3 pavingWorld;uniform float pavingNight;\n' + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      float dampPatch=smoothstep(.35,.83,sin(pavingWorld.x*1.1+sin(pavingWorld.z*.61))*sin(pavingWorld.z*.47+pavingWorld.x*.29));
+      roughnessFactor=max(.43,roughnessFactor*(1.-pavingNight*dampPatch*.44));`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float edgeMoss=smoothstep(2.9,3.6,abs(pavingWorld.x))*(.5+.5*sin(pavingWorld.z*2.7));
+      diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.62,.77,.48),edgeMoss*.27);
+      diffuseColor.rgb*=1.-pavingNight*.035;`);
+  };
 }
 
 /** Reuse authored albedo contours as linear relief, with independent reflectance. */

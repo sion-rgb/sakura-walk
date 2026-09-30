@@ -24,16 +24,16 @@ await page.evaluate(async(role)=>{
   const camera=new THREE.PerspectiveCamera(34,900/1000,.05,30);let time=0;
   window.reviewActor={view:async(name)=>{
     const speed=name.includes('walk')?1.18:0, wave=name==='wave';
-    time=0;for(let i=0;i<90;i++){actor.update(1/60,time,speed);time+=1/60;}
+    time=0;for(let i=0;i<90;i++){actor.root.position.z+=speed/60;actor.update(1/60,time,speed);time+=1/60;}
     if(wave)for(let i=0;i<60;i++){actor.update(1/60,time,0,.35,true);time+=1/60;}
-    camera.position.set(name.includes('side')?3.3:0,1.02,name==='back'?-3.3:name.includes('side')?0:3.3);camera.lookAt(0,.86,0);
+    camera.position.set(name.includes('side')?3.3:0,1.02,name==='back'?-3.3:name.includes('side')?0:3.3);camera.position.z+=actor.root.position.z;camera.lookAt(0,.86,actor.root.position.z);
     renderer.render(scene,camera);
     const joints=[];actor.root.traverse(b=>{if(b.isBone&&/J_Bip_[LR]_(UpperArm|LowerArm|Hand|UpperLeg|LowerLeg|Foot)$/.test(b.name))joints.push({name:b.name,position:b.getWorldPosition(new THREE.Vector3()).toArray()});});
     return {...actor.root.userData.character,joints};
   },gait:()=>{
     const samples=[];
     for(let i=0;i<120;i++){
-      actor.update(1/60,time,1.18);time+=1/60;
+      actor.root.position.z+=1.18/60;actor.update(1/60,time,1.18);time+=1/60;
       if(i<60||i%5)continue;
       const soles={left:Infinity,right:Infinity};
       actor.root.traverse(o=>{if(!o.isSkinnedMesh)return;const mats=Array.isArray(o.material)?o.material:[o.material];if(!mats.some(m=>/Shoes/.test(m.name)))return;o.skeleton.update();const p=new THREE.Vector3();for(let j=0;j<o.geometry.attributes.position.count;j++){o.getVertexPosition(j,p);p.applyMatrix4(o.matrixWorld);const side=p.x>0?'left':'right';soles[side]=Math.min(soles[side],p.y);}});

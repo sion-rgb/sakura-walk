@@ -1,0 +1,618 @@
+{
+  "date": "2026-09-30",
+  "build": "index-7xd8v_ps.js",
+  "publication": "local-only",
+  "environmentChecks": [
+    {
+      "name": "Ten local CC0 surface / HDR assets load",
+      "pass": true
+    },
+    {
+      "name": "day active-play: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "day companion-close: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "day vista: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "day first-person-together: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "night active-play: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "night companion-close: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "night vista: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "night first-person-together: runtime, lighting and GL",
+      "pass": true
+    },
+    {
+      "name": "Day / night transitions interpolate without reset",
+      "pass": true
+    },
+    {
+      "name": "Moonlight settles and keeps assets / scene",
+      "pass": true
+    },
+    {
+      "name": "Night walking and stop maintain companionship",
+      "pass": true
+    },
+    {
+      "name": "Night reversal repositions smoothly",
+      "pass": true
+    },
+    {
+      "name": "Paused settings transition lighting without locomotion",
+      "pass": true
+    },
+    {
+      "name": "Night high: bounded lights and draw calls",
+      "pass": true
+    },
+    {
+      "name": "Night cinematic: bounded lights and draw calls",
+      "pass": true
+    },
+    {
+      "name": "Night balanced: bounded lights and draw calls",
+      "pass": true
+    },
+    {
+      "name": "Mobile 390 day: controls and layout",
+      "pass": true
+    },
+    {
+      "name": "Mobile 390 night: controls and layout",
+      "pass": true
+    },
+    {
+      "name": "Mobile 844 day: controls and layout",
+      "pass": true
+    },
+    {
+      "name": "Mobile 844 night: controls and layout",
+      "pass": true
+    },
+    {
+      "name": "Touch moonlight switch works",
+      "pass": true
+    },
+    {
+      "name": "No console / HTTP errors",
+      "pass": true
+    }
+  ],
+  "qualityChecks": [
+    {
+      "name": "high effects and shadow resolution",
+      "pass": true
+    },
+    {
+      "name": "cinematic effects and shadow resolution",
+      "pass": true
+    },
+    {
+      "name": "balanced effects and shadow resolution",
+      "pass": true
+    },
+    {
+      "name": "high effects and shadow resolution",
+      "pass": true
+    },
+    {
+      "name": "Warmth control and first-person render remain live",
+      "pass": true
+    },
+    {
+      "name": "No GL error after mode switches and resize",
+      "pass": true
+    },
+    {
+      "name": "No shader errors, framebuffer errors or actionable warnings",
+      "pass": true
+    }
+  ],
+  "nightTimings": [
+    {
+      "quality": "high",
+      "timing": {
+        "medianMs": 13.30000000000291,
+        "p95Ms": 13.5
+      },
+      "renderer": {
+        "calls": 154,
+        "triangles": 845549,
+        "geometries": 74,
+        "textures": 126
+      }
+    },
+    {
+      "quality": "cinematic",
+      "timing": {
+        "medianMs": 13.30000000000291,
+        "p95Ms": 13.400000000001455
+      },
+      "renderer": {
+        "calls": 154,
+        "triangles": 848549,
+        "geometries": 74,
+        "textures": 126
+      }
+    },
+    {
+      "quality": "balanced",
+      "timing": {
+        "medianMs": 13.299999999995634,
+        "p95Ms": 13.5
+      },
+      "renderer": {
+        "calls": 136,
+        "triangles": 804655,
+        "geometries": 74,
+        "textures": 123
+      }
+    }
+  ],
+  "dayTimings": [
+    {
+      "quality": "high",
+      "timing": {
+        "medianMs": 13.300000000000182,
+        "p95Ms": 13.5,
+        "meanMs": 13.294949494949494
+      },
+      "renderer": {
+        "calls": 153,
+        "triangles": 845549,
+        "geometries": 73,
+        "textures": 126
+      },
+      "graphics": {
+        "pipeline": "beauty-depth GTAO + shadow-marched mist + bloom",
+        "rayTracing": false,
+        "ao": true,
+        "aoResolutionScale": 0.6,
+        "volumetric": true,
+        "shadowSize": 2048,
+        "night": 0,
+        "bloomStrength": 0.24,
+        "ibl": "local day / moonlight PMREM",
+        "postEffects": 3
+      }
+    },
+    {
+      "quality": "cinematic",
+      "timing": {
+        "medianMs": 13.299999999999272,
+        "p95Ms": 13.5,
+        "meanMs": 13.293939393939398
+      },
+      "renderer": {
+        "calls": 153,
+        "triangles": 848549,
+        "geometries": 73,
+        "textures": 126
+      },
+      "graphics": {
+        "pipeline": "beauty-depth GTAO + shadow-marched mist + bloom",
+        "rayTracing": false,
+        "ao": true,
+        "aoResolutionScale": 0.8,
+        "volumetric": true,
+        "shadowSize": 4096,
+        "night": 0,
+        "bloomStrength": 0.24,
+        "ibl": "local day / moonlight PMREM",
+        "postEffects": 3
+      }
+    },
+    {
+      "quality": "balanced",
+      "timing": {
+        "medianMs": 13.299999999999272,
+        "p95Ms": 13.5,
+        "meanMs": 13.563636363636355
+      },
+      "renderer": {
+        "calls": 135,
+        "triangles": 804655,
+        "geometries": 73,
+        "textures": 123
+      },
+      "graphics": {
+        "pipeline": "outdoor PBR + shadow map",
+        "rayTracing": false,
+        "ao": false,
+        "aoResolutionScale": 0.6,
+        "volumetric": false,
+        "shadowSize": 1024,
+        "night": 0,
+        "bloomStrength": 0.24,
+        "ibl": "local day / moonlight PMREM",
+        "postEffects": 0
+      }
+    },
+    {
+      "quality": "high",
+      "timing": {
+        "medianMs": 13.299999999999272,
+        "p95Ms": 13.400000000001455,
+        "meanMs": 13.293939393939398
+      },
+      "renderer": {
+        "calls": 151,
+        "triangles": 826796,
+        "geometries": 73,
+        "textures": 126
+      },
+      "graphics": {
+        "pipeline": "beauty-depth GTAO + shadow-marched mist + bloom",
+        "rayTracing": false,
+        "ao": true,
+        "aoResolutionScale": 0.6,
+        "volumetric": true,
+        "shadowSize": 2048,
+        "night": 0,
+        "bloomStrength": 0.24,
+        "ibl": "local day / moonlight PMREM",
+        "postEffects": 3
+      }
+    }
+  ],
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 SUPER (0x00001E84) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "productionSmoke": {
+    "base": "http://127.0.0.1:5192/",
+    "health": {
+      "app": "sakura-walk",
+      "version": "1.3.0"
+    },
+    "debugAbsent": true,
+    "startPauseResume": true,
+    "perspectiveAndGaze": true,
+    "pauseFit": true,
+    "assets": [
+      {
+        "url": "http://127.0.0.1:5192/models/bbs-companion.vrm",
+        "status": 200
+      },
+      {
+        "url": "http://127.0.0.1:5192/models/sssi-walker.vrm",
+        "status": 200
+      }
+    ],
+    "legacyAssets": [],
+    "errors": [],
+    "externalRequests": [],
+    "checkedAt": "2026-09-30T15:14:53.785Z"
+  },
+  "assetsBytes": 5864366,
+  "assetFiles": [
+    "public\\textures\\grass-albedo.jpg",
+    "public\\textures\\grass-ao.jpg",
+    "public\\textures\\grass-normal.jpg",
+    "public\\textures\\grass-roughness.jpg",
+    "public\\textures\\path-albedo.jpg",
+    "public\\textures\\path-ao.jpg",
+    "public\\textures\\path-normal.jpg",
+    "public\\textures\\path-roughness.jpg",
+    "public\\environments\\moonlight.hdr",
+    "public\\environments\\spring-day.hdr"
+  ],
+  "unchangedModelSHA256": {
+    "public\\models\\bbs-companion.vrm": "b8971c4ca443882c2437251122251c9bc9fcc9efb1ce95b354ef27b18299d5b7",
+    "public\\models\\sssi-walker.vrm": "7a17e310466e05b4d0101b88e9e9db8efb7811a378f4e1431f835aaeb3e5adc4"
+  },
+  "canvasCaptures": [
+    {
+      "mode": "desktop",
+      "state": "day-active-play",
+      "report": "artifacts/environment-final/canvas/desktop-day-active-play.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "night-active-play",
+      "report": "artifacts/environment-final/canvas/desktop-night-active-play.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "day-companion-close",
+      "report": "artifacts/environment-final/canvas/desktop-day-companion-close.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "night-companion-close",
+      "report": "artifacts/environment-final/canvas/desktop-night-companion-close.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "day-vista",
+      "report": "artifacts/environment-final/canvas/desktop-day-vista.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "night-vista",
+      "report": "artifacts/environment-final/canvas/desktop-night-vista.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "day-first-person-together",
+      "report": "artifacts/environment-final/canvas/desktop-day-first-person-together.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "night-first-person-together",
+      "report": "artifacts/environment-final/canvas/desktop-night-first-person-together.json"
+    },
+    {
+      "mode": "mobile",
+      "state": "day-active-play",
+      "report": "artifacts/environment-final/canvas/mobile-day-active-play.json"
+    },
+    {
+      "mode": "mobile",
+      "state": "night-active-play",
+      "report": "artifacts/environment-final/canvas/mobile-night-active-play.json"
+    },
+    {
+      "mode": "mobile",
+      "state": "day-first-person-together",
+      "report": "artifacts/environment-final/canvas/mobile-day-first-person-together.json"
+    },
+    {
+      "mode": "mobile",
+      "state": "night-first-person-together",
+      "report": "artifacts/environment-final/canvas/mobile-night-first-person-together.json"
+    }
+  ],
+  "limits": [
+    "Phone hardware performance unverified; mobile checks use Chromium emulation.",
+    "No hardware ray tracing, full path tracing, live mirror reflection or dynamic GI.",
+    "Avatar texture counts and some triangle counts exceed conservative starter budgets.",
+    "Measured GPU is RTX 2070 SUPER, display capped near 75 Hz."
+  ],
+  "controlChecks": [
+    {
+      "name": "Start and gesture audio unlock",
+      "pass": true
+    },
+    {
+      "name": "Both supplied VRM1 avatars replace the sample characters",
+      "pass": true
+    },
+    {
+      "name": "Forward walking responds to real input",
+      "pass": true
+    },
+    {
+      "name": "Companion settles beside stopped player",
+      "pass": true
+    },
+    {
+      "name": "Camera-relative screen-right direction",
+      "pass": true
+    },
+    {
+      "name": "Reverse movement and natural reformation",
+      "pass": true
+    },
+    {
+      "name": "Greeting triggers wave and visible line",
+      "pass": true
+    },
+    {
+      "name": "Mouse orbit updates camera",
+      "pass": true
+    },
+    {
+      "name": "Safe camera floor and minimum zoom",
+      "pass": true
+    },
+    {
+      "name": "Photo mode freezes locomotion",
+      "pass": true
+    },
+    {
+      "name": "Photo download produces PNG",
+      "pass": true
+    },
+    {
+      "name": "Pause freezes scene and audio",
+      "pass": true
+    },
+    {
+      "name": "Settings are connected to runtime",
+      "pass": true
+    },
+    {
+      "name": "Mute control",
+      "pass": true
+    },
+    {
+      "name": "Return to entrance resets formation",
+      "pass": true
+    },
+    {
+      "name": "Auto-stroll moves and toggles off",
+      "pass": true
+    },
+    {
+      "name": "Path boundary and companion side switch",
+      "pass": true
+    },
+    {
+      "name": "First person switches to adult eye height and hides self",
+      "pass": true
+    },
+    {
+      "name": "First person looks at companion while walking the original direction",
+      "pass": true
+    },
+    {
+      "name": "First-person companion stops in formation",
+      "pass": true
+    },
+    {
+      "name": "Photo mode restores first-person perspective and gaze",
+      "pass": true
+    },
+    {
+      "name": "First-person free look releases companion focus",
+      "pass": true
+    },
+    {
+      "name": "Third person restores visible male avatar",
+      "pass": true
+    },
+    {
+      "name": "Touch joystick emits movement and releases",
+      "pass": true
+    },
+    {
+      "name": "Touch-screen orbit and readable viewport",
+      "pass": true
+    },
+    {
+      "name": "Landscape resize retains nonzero canvas",
+      "pass": true
+    },
+    {
+      "name": "Touch perspective and look-at controls work",
+      "pass": true
+    },
+    {
+      "name": "Browser console and requests",
+      "pass": true,
+      "errors": [],
+      "failedRequests": []
+    }
+  ],
+  "nightMotion": {
+    "errors": [],
+    "samples": [
+      {
+        "name": "walking",
+        "player": {
+          "x": -1.4894739211881376,
+          "y": 0,
+          "z": 17.795934025946206,
+          "yaw": -0.19999999999992923,
+          "speed": 1.119999999997615
+        },
+        "companion": {
+          "x": -0.39000657904362623,
+          "y": 0,
+          "z": 18.23717502435956,
+          "yaw": -0.20000000681674576,
+          "speed": 1.1199999999940242,
+          "separation": 1.184703361657731,
+          "greeting": 0
+        }
+      },
+      {
+        "name": "stopped",
+        "player": {
+          "x": -1.6284520909759712,
+          "y": 0,
+          "z": 18.481534861835193,
+          "yaw": -0.20000000000000023,
+          "speed": 0
+        },
+        "companion": {
+          "x": -0.5406352007092411,
+          "y": 0,
+          "z": 18.967839102648362,
+          "yaw": -0.2000145316822892,
+          "speed": 0,
+          "separation": 1.191569301963781,
+          "greeting": 0
+        }
+      },
+      {
+        "name": "turned",
+        "player": {
+          "x": -1.0018455572878424,
+          "y": 0,
+          "z": 15.390387785096998,
+          "yaw": 2.941592653577499,
+          "speed": 0
+        },
+        "companion": {
+          "x": -2.083630731966392,
+          "y": 0,
+          "z": 14.904301983384931,
+          "yaw": -3.3413662791463143,
+          "speed": 0,
+          "separation": 1.1859757884461057,
+          "greeting": 0
+        }
+      },
+      {
+        "name": "first-person-walking",
+        "player": {
+          "x": -0.3621689321756989,
+          "y": 0,
+          "z": 12.234763923325302,
+          "yaw": 2.941592653577499,
+          "speed": 1.119999999810508
+        },
+        "companion": {
+          "x": -1.4582017013517732,
+          "y": 0,
+          "z": 11.812971693376324,
+          "yaw": -3.3415926543480303,
+          "speed": 1.119999999524629,
+          "separation": 1.1743919773027678,
+          "greeting": 0
+        }
+      },
+      {
+        "name": "greeting",
+        "player": {
+          "x": -0.23802473908435273,
+          "y": 0,
+          "z": 11.622341391939587,
+          "yaw": 2.941592653577499,
+          "speed": 0
+        },
+        "companion": {
+          "x": -1.3214587592974312,
+          "y": 0,
+          "z": 11.136419761856057,
+          "yaw": -4.148133792915982,
+          "speed": 0,
+          "separation": 1.1874127785812765,
+          "greeting": 2.6833333333333362
+        }
+      }
+    ]
+  },
+  "sourceSHA256": {
+    "src\\atmosphere-pass.ts": "de8f0170c74d2fbcf23322ac95198f47f30193d507369fe7ba82b0b500cd2fcc",
+    "src\\audio.ts": "a04408a403c7662ded8c9cef84ee2ed9585f10e135328f78c1ace671c6f0e89a",
+    "src\\character-face.ts": "d9bb3bd2b5c6af4ff745fbaa94135a2259ccbd4493d52863426d16c174d7cb0e",
+    "src\\character-hair.ts": "5f46b14fc4127aaf67708b9bf3606664e0fcf438d830b94e7ea8ab64921b9705",
+    "src\\character-wardrobe.ts": "d5f5826aee2787866d19ef11dd965a026d2d113abfa959134355e26bd97e256e",
+    "src\\character.ts": "19c534def0d8b80d52fcfbb98ea367f6a407aa5d836b20b553c837cdc65f2169",
+    "src\\environment-materials.ts": "01f2b94d2b07425476e81dbe69a50a625bd244d067ea9855eedf4b6114c65395",
+    "src\\environment.ts": "e982ab89cfd67d26d82332fa7a2f3f307ee7431d49857d275f008c20aecd1bf2",
+    "src\\lighting.ts": "666dde854107f019618361fefcf4f48ee86ff1cc280b0952c131ad382091df9a",
+    "src\\main.ts": "8ca33e01698218ae6d2045cdab67d632d8a83a6d4b31009cda10200717360fee",
+    "src\\render-pipeline.ts": "65d11c2d36836b4e75c2b90b2eb1c7670e797b5421f23fee18cae86c8f83a977",
+    "src\\style.css": "b1bd75ee72a7162678057cc4e23be9aff320c1afde5e7fa0ddb842494914f687",
+    "src\\vite-env.d.ts": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+  }
+}

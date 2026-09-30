@@ -16,6 +16,7 @@
 - 遊戲中的 Haruka 設定為20歲，男生22歲，均為虛構成年人；以等比例縮放設定身高1.64／1.77公尺。1.3 不再套用1.2的自製髮型、服裝或虹膜覆蓋層。
 - 第一／第三人稱即時切換；第一人稱可望向 Haruka，同時繼續沿原方向行走。
 - 同行採用共同速度加隊形修正：同步起步、停步、轉向，靠近路邊會調整站位。
+- 步態修正：按實際移動距離調整步幅，支撐腳保持地面位置，腳跟／腳尖滾動，手臂與重心自然跟隨；停步分腳收步，轉向和短暫停步後重新起步不再跳腳。見 [步態驗證](docs/verification-animation.md)。
 - 櫻花隧道、落瓣、花叢、蕨類、苔石、小溪、石燈籠、木椅與鳥居遠景。
 - 輕量環境音、招呼、拍照、觸控操作與畫質設定。沒有戰鬥或任務壓力。
 
@@ -24,6 +25,14 @@
 ![First-person companionship](docs/v1.3-first-person.png)
 
 A complete Three.js companion-walking experience. Haruka is a fictional 20-year-old adult; the player avatar is 22. The costume is school-uniform-inspired, with a wholesome, non-sexual presentation.
+
+## Environment upgrade (local implementation, 30 September 2026)
+
+The existing scene now includes four sakura crown families, organic meadow/flower/fern/root planting, locally hosted PBR turf and stone, and forest depth behind the shrine. **N** or the moon/sun button smoothly switches between spring daylight and moonlight. The pause settings also offer both atmospheres. Moonlight adds stars, silver illumination, warm stone lanterns, mist, fireflies and restrained damp-stone reflections without reloading the characters or scene.
+
+The added environment files total **5.59 MiB**, all CC0: [assets, authors and licences](THIRD_PARTY_ASSETS.md). Grass and fallen petals use spatial batches and distance culling. Two lantern lights are pooled, shared structures are merged, and Balanced reduces vegetation/particle density and disables post effects. Touch devices default to Balanced; the quality selector remains available. Characters and all previous controls are retained.
+
+Current upgrade verification: [environment verification](docs/verification-environment.md). The online v1.3 release link above describes the previously published version; this local environment upgrade has not been published.
 
 ## Play on Windows
 
@@ -40,6 +49,7 @@ Or run `node scripts/serve.mjs`, then visit http://127.0.0.1:5188/. Local server
 | Zoom | Mouse wheel |
 | First / third person | V / 1P–3P button / pause settings |
 | Look at Haruka while keeping walking direction (first person) | Q / Look at Haruka |
+| Day / moonlight | N / moon–sun button / pause settings |
 | Auto-stroll / stop | Space / on-screen button |
 | Greet Haruka | E / Share a moment |
 | Photograph mode / return | P |
@@ -48,7 +58,7 @@ Or run `node scripts/serve.mjs`, then visit http://127.0.0.1:5188/. Local server
 | Pause / resume | Esc |
 | Touch movement | Lower-left joystick |
 
-Pause settings include volume, soft piano, afternoon warmth, gentler motion and render quality. Returning to the entrance resets both characters. Photo mode freezes the moment and allows safe camera composition. Camera elevation and zoom have limits to maintain a tasteful view.
+Pause settings include daylight/moonlight, volume, soft piano, afternoon warmth, gentler motion and render quality. Returning to the entrance resets both characters. Photo mode freezes the moment and allows safe camera composition. Camera elevation and zoom have limits to maintain a tasteful view.
 
 ## 畫質設定
 
@@ -67,15 +77,18 @@ Node.js 20.19+ or 22.12+ recommended for Vite. Run `npm ci`, `npm run dev`, `npm
 ## Architecture
 
 - `src/main.ts`: renderer, fixed-step kinematic movement/collision, companion formation, cinematic camera and UI state.
-- `src/character.ts`: user-supplied VRM 1.0 characters, distance-driven humanoid gait, blink/head-look/greeting and VRM spring motion. The model files retain their original geometry, textures and embedded metadata.
+- `src/character.ts`: user-supplied VRM 1.0 characters, grounded three-dimensional leg IK, heel/toe support, start/stop/turn blending, blink/head-look/greeting and VRM spring motion. The model files retain their original geometry, textures and embedded metadata.
+- `src/sakura-gait.ts`: continuous distance-driven foot trajectories and a cached shoe support envelope; no per-frame shoe-vertex skinning.
 - `src/character-hair.ts`, `src/character-wardrobe.ts`, `src/character-face.ts`: legacy 1.2 reference-inspired overlays retained in the source; these are not used by the 1.3 character loader.
 - `src/environment.ts`: seeded sakura avenue, instanced blossom/grass/petal kit, detailed props, GPU petal animation.
-- `src/environment-materials.ts`: deterministic granite, relief/roughness and water-normal textures, with linear data maps.
-- `src/lighting.ts`: outdoor HDR sky/PMREM and stabilized directional shadows.
+- `src/environment-materials.ts`: local CC0 albedo/normal/roughness/AO surfaces, night damp-stone response and generated water normals, with linear data maps.
+- `src/lighting.ts`: procedural day/star/moon sky, local day/night HDRs blended as PMREM, and stabilized directional shadows.
 - `src/render-pipeline.ts`, `src/atmosphere-pass.ts`: actual beauty-depth GTAO, shadow-marched mist, HDR bloom and quality presets. Avatar masks and cutout foliage remain in the depth source.
 - `src/audio.ts`: original Web Audio wind, bird chirps, distant bells, footfalls and gentle instrumental notes.
 - `src/style.css` / `index.html`: responsive controls, opening title, photo and pause states.
 - `scripts/qa.mjs`: real-input browser checks, motion recording, portrait/landscape evidence.
+- `scripts/qa-gait.mjs`, `scripts/review-gait.mjs`: translated slow/steady/start/stop/turn/restart gait checks and actual scene motion captures. The focused rig test uses the development server on port 5190.
+- `scripts/qa-environment.mjs`: day/night, smooth transition, night companionship, asset reuse and responsive checks.
 - `scripts/qa-lighting.mjs`: quality switching, shader/GL checks, resize and measured frame timing. Verification record: [docs/verification-v1.3.md](docs/verification-v1.3.md).
 
 The original illustration guides the mood and palette. Version 1.3 uses the user's BBs and sssi VRM 1.0 models for the companion and walker, respectively. Their supplied appearance replaces the earlier sample-based character design. Audio is synthesized, with no recorded dialogue. Physics uses 60 Hz kinematic circle collision on a level path.

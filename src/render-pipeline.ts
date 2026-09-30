@@ -24,12 +24,13 @@ export function createRenderPipeline(renderer:THREE.WebGLRenderer,scene:THREE.Sc
   ao.updatePdMaterial({lumaPhi:8,depthPhi:2,normalPhi:3,radius:5,rings:2,samples:8});composer.addPass(ao);
   const atmosphere=new AtmospherePass(camera,sun,()=>ao.depthTexture);composer.addPass(atmosphere);
   const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),.24,.55,1.15);composer.addPass(bloom);composer.addPass(new OutputPass());
-  let quality='high';
+  let quality='high',night=0;
   return {
     composer,ao,atmosphere,bloom,
+    setNight(value:number){night=value;bloom.strength=THREE.MathUtils.lerp(.24,.30,value);bloom.threshold=THREE.MathUtils.lerp(1.15,.95,value);atmosphere.setStrength(THREE.MathUtils.lerp(.46,.17,value));},
     setQuality(value:string){quality=value;ao.enabled=atmosphere.enabled=bloom.enabled=value!=='balanced';ao.resolutionScale=value==='cinematic'?.8:.6;ao.updateGtaoMaterial({samples:value==='cinematic'?24:16});atmosphere.setQuality(value);},
     resize(width:number,height:number,dpr:number){composer.setPixelRatio(dpr);composer.setSize(width,height);},
     render(){if(quality==='balanced')renderer.render(scene,camera);else composer.render();},
-    diagnostics(){return {pipeline:quality==='balanced'?'outdoor PBR + shadow map':'beauty-depth GTAO + shadow-marched mist + bloom',rayTracing:false,ao:ao.enabled,aoResolutionScale:ao.resolutionScale,volumetric:atmosphere.enabled,shadowSize:sun.shadow.mapSize.x,ibl:'outdoor PMREM',postEffects:quality==='balanced'?0:3};}
+    diagnostics(){return {pipeline:quality==='balanced'?'outdoor PBR + shadow map':'beauty-depth GTAO + shadow-marched mist + bloom',rayTracing:false,ao:ao.enabled,aoResolutionScale:ao.resolutionScale,volumetric:atmosphere.enabled,shadowSize:sun.shadow.mapSize.x,night,bloomStrength:bloom.strength,ibl:'local day / moonlight PMREM',postEffects:quality==='balanced'?0:3};}
   };
 }
