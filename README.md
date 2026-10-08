@@ -49,7 +49,8 @@ Or run `node scripts/serve.mjs`, then visit http://127.0.0.1:5188/. Local server
 | Orbit the pair | Mouse or touch drag |
 | Zoom | Mouse wheel |
 | First / third person | V / 1P–3P button / pause settings |
-| Look at Haruka while keeping walking direction (first person) | Q / Look at Haruka |
+| Switch controlled character: Walker / Haruka | C / ♂–♀ button / pause settings |
+| Look at each other; first-person camera looks at the partner | Q / Look together |
 | Day / moonlight | N / moon–sun button / pause settings |
 | Auto-stroll / stop | Space / on-screen button |
 | Greet Haruka | E / Share a moment |
