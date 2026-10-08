@@ -39,6 +39,11 @@ async function boot(){
  let elapsed=0,frame=0,accumulator=0,autoWalk=false,greeting=0,nextRemark=15,captionLeft=0,toastLeft=0;
  let playerYaw=0,companionYaw=0,yaw=Math.PI+.17,yawTarget=yaw,elevation=.17,elevationTarget=.17,distance=5.6,distanceTarget=5.6;
  let formationSide=1;let traveled=0,playerSteps=0,companionSteps=0,stepP=0,stepC=0,seedValue=42;
+ type ControlledRole='male'|'female';
+ let controlledRole:ControlledRole='male',playerLook=0;
+ const controlled=()=>controlledRole==='male'?player:companion;
+ const partner=()=>controlledRole==='male'?companion:player;
+ const controlledYaw=()=>controlledRole==='male'?playerYaw:companionYaw;
  type CameraMode='third'|'first';
  let cameraMode:CameraMode='third',lookTogether=false,firstYaw=0,firstPitch=-.04,firstFov=68;
  let photoPreviousMode:CameraMode='third',previousLook=false,companionLook=0;
@@ -60,10 +65,11 @@ async function boot(){
  function syncSound(){$('sound').innerHTML=icon(audio.muted?icons.mute:icons.sound);$('sound').setAttribute('aria-label',audio.muted?'Enable sound':'Mute sound');}
  function setAuto(value:boolean){autoWalk=value;$('stroll').setAttribute('aria-pressed',String(value));$('touch-stroll').setAttribute('aria-pressed',String(value));}
  function resetInput(){keys.clear();touch.set(0,0);$('stick').style.transform='';pointerId=null;stickId=null;setAuto(false);}
- function syncView(){document.body.classList.toggle('first-person',cameraMode==='first');$('view').textContent=cameraMode==='first'?'1P':'3P';$('view').setAttribute('aria-label',cameraMode==='first'?'Switch to third-person view (V)':'Switch to first-person view (V)');$<HTMLSelectElement>('camera-view').value=cameraMode;for(const id of ['look','touch-look'])$(id).setAttribute('aria-pressed',String(lookTogether));player.root.visible=cameraMode!=='first';}
- function setCameraMode(mode:CameraMode,notify=true){if(photo)return;cameraMode=mode;lookTogether=false;firstYaw=playerYaw;firstPitch=-.04;if(mode==='third'){yaw=yawTarget=playerYaw+Math.PI;elevation=elevationTarget=.19;}resetInput();syncView();resize();cameraUpdate(1,true);if(notify)toast(mode==='first'?'First person · Q to look at Haruka · V to switch':'Third person · Drag to orbit · V to switch');}
- function setLook(value:boolean){if(cameraMode!=='first'||photo||paused)return;lookTogether=value;syncView();if(value)toast('Walking together · drag to look freely');}
- function reset(){player.root.position.set(-.72,0,0);companion.root.position.set(.72,0,.1);playerYaw=companionYaw=0;player.root.rotation.y=companion.root.rotation.y=0;velocity.set(0,0,0);compVelocity.set(0,0,0);player.resetMotion();companion.resetMotion();yawTarget=yaw=Math.PI+.17;elevationTarget=elevation=.17;distanceTarget=distance=innerWidth<650?7.6:5.6;focus.set(0,1.12,0);formationSide=1;traveled=0;playerSteps=companionSteps=stepP=stepC=0;greeting=0;firstYaw=0;firstPitch=-.04;lookTogether=false;syncView();resetInput();cameraUpdate(1,true);}
+ function syncView(){document.body.classList.toggle('first-person',cameraMode==='first');$('view').textContent=cameraMode==='first'?'1P':'3P';$('view').setAttribute('aria-label',cameraMode==='first'?'Switch to third-person view (V)':'Switch to first-person view (V)');$<HTMLSelectElement>('camera-view').value=cameraMode;for(const id of ['look','touch-look'])$(id).setAttribute('aria-pressed',String(lookTogether));player.root.visible=!(cameraMode==='first'&&controlledRole==='male');companion.root.visible=!(cameraMode==='first'&&controlledRole==='female');$('character').textContent=controlledRole==='male'?'♂':'♀';$('character').setAttribute('aria-label',`Control ${controlledRole==='male'?'Haruka':'Walker'} (C)`);$('character').setAttribute('aria-pressed',String(controlledRole==='female'));$<HTMLSelectElement>('controlled-character').value=controlledRole;}
+ function setControlledRole(role:ControlledRole,notify=true){if(photo||role===controlledRole)return;controlledRole=role;resetInput();velocity.set(0,0,0);compVelocity.set(0,0,0);right.set(Math.cos(controlledYaw()),0,-Math.sin(controlledYaw()));formationSide=partner().root.position.clone().sub(controlled().root.position).dot(right)>=0?1:-1;firstYaw=controlledYaw();firstPitch=-.04;lookTogether=false;syncView();if(notify)toast(`Walking as ${role==='female'?'Haruka':'Walker'} · C to switch`);}
+ function setCameraMode(mode:CameraMode,notify=true){if(photo)return;cameraMode=mode;lookTogether=false;firstYaw=controlledYaw();firstPitch=-.04;if(mode==='third'){yaw=yawTarget=controlledYaw()+Math.PI;elevation=elevationTarget=.19;}resetInput();syncView();resize();cameraUpdate(1,true);if(notify)toast(mode==='first'?'First person · Q to look together · C to switch character':'Third person · Q to look together · Drag to orbit');}
+ function setLook(value:boolean){if(photo||paused)return;lookTogether=value;syncView();if(value)toast('A shared glance · Q to release');}
+ function reset(){player.root.position.set(-.72,0,0);companion.root.position.set(.72,0,.1);playerYaw=companionYaw=0;player.root.rotation.y=companion.root.rotation.y=0;velocity.set(0,0,0);compVelocity.set(0,0,0);player.resetMotion();companion.resetMotion();yawTarget=yaw=Math.PI+.17;elevationTarget=elevation=.17;distanceTarget=distance=innerWidth<650?7.6:5.6;focus.set(0,1.12,0);formationSide=controlledRole==='male'?1:-1;traveled=0;playerSteps=companionSteps=stepP=stepC=0;greeting=0;firstYaw=0;firstPitch=-.04;lookTogether=false;syncView();resetInput();cameraUpdate(1,true);}
  function start(withSound=true){if(started)return;started=true;document.body.classList.add('started');$('welcome').hidden=true;$('controls').hidden=false;$('top-actions').hidden=false;$('touch-controls').hidden=!coarse;if(withSound)void audio.unlock().catch(()=>toast('Sound is unavailable in this browser.'));say("There you are. Shall we?",6);canvas.focus();}
  function setPause(value:boolean){paused=value;resetInput();void audio.pause(value||photo);if(value&&!settings.open)settings.showModal();if(!value&&settings.open)settings.close();}
  function photoMode(value:boolean){if(!started||paused)return;if(value){photoPreviousMode=cameraMode;previousLook=lookTogether;if(cameraMode==='first')setCameraMode('third',false);}photo=value;resetInput();document.body.classList.toggle('photo-mode',value);$('photo-tools').hidden=!value;void audio.pause(value);if(value)toast('Drag to compose · Scroll to frame');else{setCameraMode(photoPreviousMode,false);lookTogether=previousLook;syncView();}}
@@ -74,50 +80,54 @@ async function boot(){
   if(!started){player.update(dt,elapsed,0,0,false);companion.update(dt,elapsed,0,-.14,Math.sin(elapsed*.2)>.99);world.update(dt,elapsed,focus);return;}
   let ix=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+touch.x;
   let iy=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-touch.y;
-  if(autoWalk&&Math.abs(ix)+Math.abs(iy)<.05){move.set(Math.sin(playerYaw),0,Math.cos(playerYaw));}
+  const actor=controlled(),other=partner(),actorVelocity=controlledRole==='male'?velocity:compVelocity,otherVelocity=controlledRole==='male'?compVelocity:velocity;
+  let actorYaw=controlledYaw(),otherYaw=controlledRole==='male'?companionYaw:playerYaw;
+  if(autoWalk&&Math.abs(ix)+Math.abs(iy)<.05){move.set(Math.sin(actorYaw),0,Math.cos(actorYaw));}
   else if(cameraMode==='first'){move.set(Math.sin(firstYaw)*iy-Math.cos(firstYaw)*ix,0,Math.cos(firstYaw)*iy+Math.sin(firstYaw)*ix);}
   else{move.set(-Math.sin(yaw)*iy+Math.cos(yaw)*ix,0,-Math.cos(yaw)*iy-Math.sin(yaw)*ix);}
   if(move.length()>1)move.normalize();
-  velocity.lerp(move.multiplyScalar(1.12),1-Math.exp(-dt*7.5));if(velocity.length()<.005)velocity.set(0,0,0);
-  const oldX=player.root.position.x,oldZ=player.root.position.z;player.root.position.addScaledVector(velocity,dt);collide(player.root.position);
-  const realSpeed=Math.hypot(player.root.position.x-oldX,player.root.position.z-oldZ)/dt;
-  if(realSpeed>.03){playerYaw+=angleDelta(playerYaw,Math.atan2(velocity.x,velocity.z))*(1-Math.exp(-dt*8));traveled+=realSpeed*dt;}
-  if(autoWalk&&realSpeed<.04&&velocity.length()>.4){setAuto(false);say("Let's linger here… or wander back together.");}
-  player.root.rotation.y=playerYaw;
-  right.set(Math.cos(playerYaw),0,-Math.sin(playerYaw));const formationX=player.root.position.x+right.x*1.16*formationSide;if(formationX<world.bounds.minX+.3||formationX>world.bounds.maxX-.3)formationSide*=-1;desired.copy(player.root.position).addScaledVector(right,1.16*formationSide);desired.x+=Math.sin(playerYaw)*.22;desired.z+=Math.cos(playerYaw)*.22;collide(desired,.3);
-  target.subVectors(desired,companion.root.position);const error=target.length();
-  // Share the player's velocity immediately, with a small formation correction.
-  // This removes the steady trailing error of a pure chase controller.
-  target.multiplyScalar(error<.045?0:3.4);if(realSpeed>.015)target.addScaledVector(velocity,realSpeed/Math.max(.01,velocity.length()));target.clampLength(0,1.9);
-  compVelocity.lerp(target,1-Math.exp(-dt*12));if(error<.055&&realSpeed<.03&&compVelocity.length()<.10)compVelocity.set(0,0,0);
-  const cx=companion.root.position.x,cz=companion.root.position.z;companion.root.position.addScaledVector(compVelocity,dt);collide(companion.root.position,.28);
-  const sep=target.subVectors(companion.root.position,player.root.position);const sepLen=sep.length();if(sepLen<.64&&sepLen>.001)companion.root.position.addScaledVector(sep.normalize(),.64-sepLen);collide(companion.root.position,.28);
-  const cSpeed=Math.hypot(companion.root.position.x-cx,companion.root.position.z-cz)/dt;
-  const facingPlayer=Math.atan2(player.root.position.x-companion.root.position.x,player.root.position.z-companion.root.position.z);
-  const desiredYaw=cSpeed>.10?Math.atan2(compVelocity.x,compVelocity.z):playerYaw+(lookTogether||greeting>0?angleDelta(playerYaw,facingPlayer)*.45:0);
-  companionYaw+=angleDelta(companionYaw,desiredYaw)*(1-Math.exp(-dt*6));companion.root.rotation.y=companionYaw;
-  const toPlayer=Math.atan2(player.root.position.x-companion.root.position.x,player.root.position.z-companion.root.position.z);
-  const attention=lookTogether||greeting>0||realSpeed<.05||Math.sin(elapsed*.37)>.72;
-  const look=attention?clamp(angleDelta(companionYaw,toPlayer),-1.05,1.05):0;companionLook=look;
-  player.update(dt,elapsed,realSpeed,realSpeed<.03?.14:0,false);companion.update(dt,elapsed,cSpeed,look,greeting>0);
-  playerSteps+=realSpeed*dt/.55;companionSteps+=cSpeed*dt/.52;
+  actorVelocity.lerp(move.multiplyScalar(1.12),1-Math.exp(-dt*7.5));if(actorVelocity.length()<.005)actorVelocity.set(0,0,0);
+  const oldX=actor.root.position.x,oldZ=actor.root.position.z;actor.root.position.addScaledVector(actorVelocity,dt);collide(actor.root.position);
+  const realSpeed=Math.hypot(actor.root.position.x-oldX,actor.root.position.z-oldZ)/dt;
+  if(realSpeed>.03){actorYaw+=angleDelta(actorYaw,Math.atan2(actorVelocity.x,actorVelocity.z))*(1-Math.exp(-dt*6));traveled+=realSpeed*dt;}
+  if(autoWalk&&realSpeed<.04&&actorVelocity.length()>.4){setAuto(false);say("Let's linger here… or wander back together.");}
+  actor.root.rotation.y=actorYaw;
+  right.set(Math.cos(actorYaw),0,-Math.sin(actorYaw));const formationX=actor.root.position.x+right.x*1.16*formationSide;if(formationX<world.bounds.minX+.3||formationX>world.bounds.maxX-.3)formationSide*=-1;
+  desired.copy(actor.root.position).addScaledVector(right,1.16*formationSide);desired.x+=Math.sin(actorYaw)*.16;desired.z+=Math.cos(actorYaw)*.16;collide(desired,.3);
+  target.subVectors(desired,other.root.position);const error=target.length();
+  target.multiplyScalar(error<.045?0:2.8);if(realSpeed>.015)target.addScaledVector(actorVelocity,realSpeed/Math.max(.01,actorVelocity.length()));target.clampLength(0,1.65);
+  otherVelocity.lerp(target,1-Math.exp(-dt*9));if(error<.065&&realSpeed<.03&&otherVelocity.length()<.10)otherVelocity.set(0,0,0);
+  const ox=other.root.position.x,oz=other.root.position.z;other.root.position.addScaledVector(otherVelocity,dt);collide(other.root.position,.28);
+  const sep=target.subVectors(other.root.position,actor.root.position),sepLen=sep.length();if(sepLen<.64&&sepLen>.001)other.root.position.addScaledVector(sep.normalize(),.64-sepLen);collide(other.root.position,.28);
+  const otherSpeed=Math.hypot(other.root.position.x-ox,other.root.position.z-oz)/dt;
+  const facingActor=Math.atan2(actor.root.position.x-other.root.position.x,actor.root.position.z-other.root.position.z);
+  const desiredYaw=otherSpeed>.10?Math.atan2(otherVelocity.x,otherVelocity.z):actorYaw+(lookTogether||greeting>0?angleDelta(actorYaw,facingActor)*.48:0);
+  otherYaw+=angleDelta(otherYaw,desiredYaw)*(1-Math.exp(-dt*5));other.root.rotation.y=otherYaw;
+  if(controlledRole==='male'){playerYaw=actorYaw;companionYaw=otherYaw;}else{companionYaw=actorYaw;playerYaw=otherYaw;}
+  const femaleAttention=lookTogether||greeting>0||realSpeed<.05||Math.sin(elapsed*.37)>.72;
+  const maleAttention=lookTogether||greeting>0;
+  companionLook=femaleAttention?clamp(angleDelta(companionYaw,Math.atan2(player.root.position.x-companion.root.position.x,player.root.position.z-companion.root.position.z)),-1.05,1.05):0;
+  playerLook=maleAttention?clamp(angleDelta(playerYaw,Math.atan2(companion.root.position.x-player.root.position.x,companion.root.position.z-player.root.position.z)),-1.05,1.05):0;
+  const maleSpeed=controlledRole==='male'?realSpeed:otherSpeed,femaleSpeed=controlledRole==='female'?realSpeed:otherSpeed;
+  player.update(dt,elapsed,maleSpeed,playerLook,false);companion.update(dt,elapsed,femaleSpeed,companionLook,greeting>0);
+  playerSteps+=maleSpeed*dt/.55;companionSteps+=femaleSpeed*dt/.52;
   if(Math.floor(playerSteps)>stepP){stepP=Math.floor(playerSteps);audio.step();}if(Math.floor(companionSteps)>stepC){stepC=Math.floor(companionSteps);audio.step(true);}
   if(greeting>0)greeting=Math.max(0,greeting-dt);
   nextRemark-=dt;if(nextRemark<=0){nextRemark=24+((sayingIndex*7)%17);say(sayings[sayingIndex++%sayings.length],5.5);}
   captionLeft-=dt;if(captionLeft<=0)$('caption').classList.remove('visible');toastLeft-=dt;if(toastLeft<=0)$('toast').classList.remove('visible');
-  const landmark=[...world.landmarks].reverse().find(l=>player.root.position.z>=l.z);$('place').textContent=landmark?.name??'The blossom avenue';
-  world.update(reduced?dt*.4:dt,reduced?elapsed*.4:elapsed,player.root.position);audio.update(dt,elapsed);
+  const landmark=[...world.landmarks].reverse().find(l=>controlled().root.position.z>=l.z);$('place').textContent=landmark?.name??'The blossom avenue';
+  world.update(reduced?dt*.4:dt,reduced?elapsed*.4:elapsed,controlled().root.position);audio.update(dt,elapsed);
  }
  function cameraUpdate(dt:number,instant=false){
   const factor=instant?1:1-Math.exp(-dt*(reduced?12:5));
   if(cameraMode==='first'&&started&&!photo){
-   const eyeHeight=player.getEyeHeight?.()??1.65;
-   target.copy(player.root.position);target.y=eyeHeight;
+   const eyeHeight=controlled().getEyeHeight();
+   target.copy(controlled().root.position);target.y=eyeHeight;
    camera.position.lerp(target,instant?1:1-Math.exp(-dt*24));
-   if(lookTogether){if(companion.getGazeTarget)companion.getGazeTarget(cameraPoint);else cameraPoint.copy(companion.root.position).add(new THREE.Vector3(0,1.5,0));}
+   if(lookTogether){partner().getGazeTarget(cameraPoint);}
    else cameraPoint.copy(camera.position).add(new THREE.Vector3(Math.sin(firstYaw)*Math.cos(firstPitch),Math.sin(firstPitch),Math.cos(firstYaw)*Math.cos(firstPitch)));
    const lookMatrix=new THREE.Matrix4().lookAt(camera.position,cameraPoint,camera.up),lookQuaternion=new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
-   camera.quaternion.slerp(lookQuaternion,instant?1:1-Math.exp(-dt*10));focus.copy(player.root.position);focus.y=1.15;
+   camera.quaternion.slerp(lookQuaternion,instant?1:1-Math.exp(-dt*10));focus.copy(controlled().root.position);focus.y=1.15;
    lighting.update(focus);return;
   }
   target.copy(player.root.position).add(companion.root.position).multiplyScalar(.5);target.y=1.15;
@@ -137,6 +147,7 @@ async function boot(){
  $('sound').addEventListener('click',()=>{audio.setMuted(!audio.muted);syncSound();});$('pause').addEventListener('click',()=>setPause(true));$('photo').addEventListener('click',()=>photoMode(true));$('exit-photo').addEventListener('click',()=>photoMode(false));$('save-photo').addEventListener('click',savePhoto);
  $('resume').addEventListener('click',e=>{e.preventDefault();setPause(false);canvas.focus();});settings.addEventListener('cancel',e=>{e.preventDefault();setPause(false);});$('reset').addEventListener('click',()=>{reset();setPause(false);say("Here we are, at the beginning again.");});
  $('view').addEventListener('click',()=>setCameraMode(cameraMode==='first'?'third':'first'));$('camera-view').addEventListener('change',e=>setCameraMode((e.target as HTMLSelectElement).value as CameraMode));$('look').addEventListener('click',()=>setLook(!lookTogether));$('touch-look').addEventListener('click',()=>setLook(!lookTogether));
+ $('character').addEventListener('click',()=>setControlledRole(controlledRole==='male'?'female':'male'));$('controlled-character').addEventListener('change',e=>setControlledRole((e.target as HTMLSelectElement).value as ControlledRole));
  $('volume').addEventListener('input',e=>audio.setVolume(Number((e.target as HTMLInputElement).value)/100));$('music').addEventListener('change',e=>audio.music=(e.target as HTMLInputElement).checked);
  $<HTMLInputElement>('reduced').checked=reduced;$('reduced').addEventListener('change',e=>reduced=(e.target as HTMLInputElement).checked);
  $('sunlight').addEventListener('input',e=>lighting.setWarmth(Number((e.target as HTMLInputElement).value)/100));
@@ -144,7 +155,7 @@ async function boot(){
  $('resolution').addEventListener('change',e=>graphics.setResolution((e.target as HTMLSelectElement).value as ResolutionMode));
  document.querySelector('.brand')!.addEventListener('click',e=>{e.preventDefault();if(started)setPause(true);});
  const movementCodes=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
- window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target as HTMLElement)?.tagName))return;if(e.code==='Escape'){e.preventDefault();if(photo)photoMode(false);else if(started)setPause(!paused);return;}if(paused||!started)return;if(movementCodes.includes(e.code)){e.preventDefault();if(!photo){keys.add(e.code);setAuto(false);}}if(e.repeat)return;if(e.code==='KeyV'){e.preventDefault();setCameraMode(cameraMode==='first'?'third':'first');}if(e.code==='KeyQ'){e.preventDefault();setLook(!lookTogether);}if(e.code==='KeyN'){e.preventDefault();setNight(nightTarget<.5);}if(e.code==='KeyP'){e.preventDefault();photoMode(!photo);}if(photo)return;if(e.code==='Space'){e.preventDefault();setAuto(!autoWalk);}if(e.code==='KeyE')greet();if(e.code==='KeyM'){audio.setMuted(!audio.muted);syncSound();}});
+ window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes((e.target as HTMLElement)?.tagName))return;if(e.code==='Escape'){e.preventDefault();if(photo)photoMode(false);else if(started)setPause(!paused);return;}if(paused||!started)return;if(movementCodes.includes(e.code)){e.preventDefault();if(!photo){keys.add(e.code);setAuto(false);}}if(e.repeat)return;if(e.code==='KeyV'){e.preventDefault();setCameraMode(cameraMode==='first'?'third':'first');}if(e.code==='KeyC'){e.preventDefault();setControlledRole(controlledRole==='male'?'female':'male');}if(e.code==='KeyQ'){e.preventDefault();setLook(!lookTogether);}if(e.code==='KeyN'){e.preventDefault();setNight(nightTarget<.5);}if(e.code==='KeyP'){e.preventDefault();photoMode(!photo);}if(photo)return;if(e.code==='Space'){e.preventDefault();setAuto(!autoWalk);}if(e.code==='KeyE')greet();if(e.code==='KeyM'){audio.setMuted(!audio.muted);syncSound();}});
  window.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{resetInput();if(started&&!paused&&!photo)setPause(true);});document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!photo)setPause(true);});
  canvas.addEventListener('pointerdown',e=>{if(!started||paused)return;pointerId=e.pointerId;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});canvas.addEventListener('pointermove',e=>{if(e.pointerId!==pointerId)return;if(cameraMode==='first'){if(lookTogether){const direction=camera.getWorldDirection(new THREE.Vector3());firstYaw=Math.atan2(direction.x,direction.z);firstPitch=Math.asin(direction.y);lookTogether=false;syncView();}firstYaw-=(e.clientX-lastX)*.004;firstPitch=clamp(firstPitch-(e.clientY-lastY)*.003,-.50,.55);}else{yawTarget-=(e.clientX-lastX)*.005;elevationTarget=clamp(elevationTarget+(e.clientY-lastY)*.003,.15,.85);}lastX=e.clientX;lastY=e.clientY;});
  const endPointer=()=>{pointerId=null;};canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);canvas.addEventListener('lostpointercapture',endPointer);canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -153,9 +164,9 @@ async function boot(){
  joystick.addEventListener('pointerdown',e=>{stickId=e.pointerId;joystick.setPointerCapture(e.pointerId);setAuto(false);moveStick(e);});joystick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)moveStick(e);});for(const event of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(event,()=>{stickId=null;touch.set(0,0);$('stick').style.transform='';});
  window.addEventListener('resize',resize);reset();resize();$('begin-label').textContent='Walk with Haruka';$<HTMLButtonElement>('begin').disabled=false;
  const debug=new URLSearchParams(location.search).has('qa');
- const diagnostics=()=>({frame,elapsed,started,paused,photo,autoWalk,traveled,cameraMode,lookTogether,companionLook,playerVisible:player.root.visible,player:{x:player.root.position.x,y:0,z:player.root.position.z,yaw:playerYaw,speed:velocity.length()},companion:{x:companion.root.position.x,y:0,z:companion.root.position.z,yaw:companionYaw,speed:compVelocity.length(),separation:player.root.position.distanceTo(companion.root.position),greeting},camera:{x:camera.position.x,y:camera.position.y,z:camera.position.z,elevation,distance,yaw,firstYaw,firstPitch,fov:camera.fov},audio:audio.diagnostics,fps:1000/frameMs,quality,timeOfDay:nightTarget?'moonlight':'daylight',nightBlend,lighting:lighting.diagnostics(),graphics:graphics.diagnostics(),environment:world.diagnostics,playerModel:player.root.userData.character,companionModel:companion.root.userData.character,seed:seedValue,physics:{engine:'kinematic circle collision',timestep:1/60,colliders:world.colliders.length},renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}});
+ const diagnostics=()=>({frame,elapsed,started,paused,photo,autoWalk,traveled,cameraMode,controlledRole,lookTogether,companionLook,playerLook,companionVisible:companion.root.visible,playerVisible:player.root.visible,player:{x:player.root.position.x,y:0,z:player.root.position.z,yaw:playerYaw,speed:velocity.length()},companion:{x:companion.root.position.x,y:0,z:companion.root.position.z,yaw:companionYaw,speed:compVelocity.length(),separation:player.root.position.distanceTo(companion.root.position),greeting},camera:{x:camera.position.x,y:camera.position.y,z:camera.position.z,elevation,distance,yaw,firstYaw,firstPitch,fov:camera.fov},audio:audio.diagnostics,fps:1000/frameMs,quality,timeOfDay:nightTarget?'moonlight':'daylight',nightBlend,lighting:lighting.diagnostics(),graphics:graphics.diagnostics(),environment:world.diagnostics,playerModel:player.root.userData.character,companionModel:companion.root.userData.character,seed:seedValue,physics:{engine:'kinematic circle collision',timestep:1/60,colliders:world.colliders.length},renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}});
  if(debug){const win=window as unknown as Record<string,unknown>;win.__THREE_GAME_DIAGNOSTICS__={get renderer(){return diagnostics().renderer;},get state(){return diagnostics();}};win.__SAKURA__={state:diagnostics};win.__THREE_GAME_TEST_HOOKS__={seed:(n:number)=>{seedValue=n;elapsed=0;nextRemark=15;sayingIndex=0;},setReducedMotion:(v:boolean)=>reduced=v,hideDebugUi:()=>{},setPausedForScreenshot:(v:boolean)=>{frozen=v;accumulator=0;},setGpuTimerEnabled:(v:boolean)=>graphics.setGpuTimerEnabled(v),setState:async(requested:string)=>{const isNight=requested.startsWith('night-');const name=requested.replace(/^(day|night)-/,'');setNight(isNight,true);
-   if(!['active-play','companion-close','vista','pause','welcome','first-person','first-person-together'].includes(name))throw new Error(`Unsupported capture state: ${name}`);frozen=false;photo=false;document.body.classList.remove('photo-mode');$('photo-tools').hidden=true;setPause(false);setCameraMode('third',false);reset();
+   if(!['active-play','companion-close','vista','pause','welcome','first-person','first-person-together'].includes(name))throw new Error(`Unsupported capture state: ${name}`);frozen=false;photo=false;document.body.classList.remove('photo-mode');$('photo-tools').hidden=true;setPause(false);setControlledRole('male',false);setCameraMode('third',false);reset();
    if(name==='welcome'){started=false;document.body.classList.remove('started');$('welcome').hidden=false;$('controls').hidden=true;$('top-actions').hidden=true;$('touch-controls').hidden=true;}else{start(false);}
    if(name==='active-play'){elapsed=7;player.root.position.z=14-42*1.1/60;companion.root.position.z=14.1-42*1.1/60;player.resetMotion();companion.resetMotion();for(let pose=0;pose<42;pose++){player.root.position.z+=1.1/60;companion.root.position.z+=1.1/60;player.update(1/60,elapsed+pose/60,1.1,0);companion.update(1/60,elapsed+pose/60,1.1,-.25);}}
    if(name==='companion-close'){elapsed=10;player.root.position.z=8;companion.root.position.z=8.1;yaw=yawTarget=.42;distance=distanceTarget=innerWidth<650?6.2:3.9;elevation=elevationTarget=.17;for(let pose=0;pose<100;pose++){companion.update(1/60,elapsed+pose/60,0,-.2,false);player.update(1/60,elapsed+pose/60,0,.1);}}

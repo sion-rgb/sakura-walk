@@ -83,12 +83,12 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
   for(const side of ['left','right'] as const){const sign=(side==='left'?1:-1)*rigAxis;for(const finger of ['Index','Middle','Ring','Little'] as const){for(const segment of ['Proximal','Intermediate','Distal'] as const){const b=bone(`${side}${finger}${segment}`);if(b)b.rotation.z=sign*(segment==='Proximal'?.11:.18);}}}
   const legData=legs.map(leg=>({upper:leg.knee.position.length(),lower:leg.foot.position.length(),footRest:leg.knee.position.y+leg.foot.position.y,footZ:(leg.knee.position.z+leg.foot.position.z)*rigAxis,upperRestAngle:Math.atan2(-leg.knee.position.z*rigAxis,-leg.knee.position.y),lowerRestAngle:Math.atan2(-leg.foot.position.z*rigAxis,-leg.foot.position.y)}));
   let phaseCycles=.28,blend=0,strideScale=1,look=0,waveBlend=0,stopTime=1,wasMoving=false,calibrated=false;
-  let previousYaw=0,gaitYaw=0,turnRate=0;
+  let previousYaw=0,gaitYaw=0,turnRate=0,previousSpeed=0,acceleration=0,bodySpeed=0;
   const feet=legs.map(()=>({rest:new THREE.Vector3(),world:new THREE.Vector3(),anchor:new THREE.Vector3(),swingOffset:new THREE.Vector3(),settleStart:new THREE.Vector3(),settleGoal:new THREE.Vector3(),pivotStart:new THREE.Vector3(),hull:[] as SolePoint[],flatSole:0,wasContact:true,plantYaw:0,pitch:0,stopPitch:0,settleDelay:0,pivotAge:1,contact:true}));
   const goal=new THREE.Vector3(),localGoal=new THREE.Vector3(),hipPoint=new THREE.Vector3(),bodyInverse=new THREE.Quaternion(),footOrientation=new THREE.Quaternion(),sagittal=new THREE.Quaternion(),footEuler=new THREE.Euler();
   function rootPoint(local:THREE.Vector3,out:THREE.Vector3){return out.copy(local).applyMatrix4(root.matrixWorld);}
   function resetMotion(){
-    root.updateMatrixWorld(true);phaseCycles=.28;blend=0;strideScale=1;stopTime=1;wasMoving=false;previousYaw=gaitYaw=root.rotation.y;turnRate=0;
+    root.updateMatrixWorld(true);phaseCycles=.28;blend=0;strideScale=1;stopTime=1;wasMoving=false;previousYaw=gaitYaw=root.rotation.y;turnRate=0;previousSpeed=bodySpeed=acceleration=0;look=0;
     feet.forEach(f=>{rootPoint(f.rest,f.world);f.anchor.copy(f.world);f.wasContact=true;f.plantYaw=root.rotation.y;f.pitch=f.stopPitch=0;f.swingOffset.set(0,0,0);f.pivotAge=1;f.contact=true;});
   }
   const gazeTarget=new THREE.Object3D();root.add(gazeTarget);if(vrm.lookAt){vrm.lookAt.target=gazeTarget;vrm.lookAt.autoUpdate=true;}
@@ -104,6 +104,9 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
       const moving=speed>.035;
       const yawChange=Math.atan2(Math.sin(root.rotation.y-previousYaw),Math.cos(root.rotation.y-previousYaw));
       turnRate=THREE.MathUtils.damp(turnRate,dt>0?THREE.MathUtils.clamp(yawChange/dt,-3,3):0,6,dt);previousYaw=root.rotation.y;
+      acceleration=THREE.MathUtils.damp(acceleration,dt>0?THREE.MathUtils.clamp((speed-previousSpeed)/dt,-2,2):0,5,dt);previousSpeed=speed;
+      bodySpeed=THREE.MathUtils.damp(bodySpeed,speed,7,dt);
+      look=THREE.MathUtils.damp(look,THREE.MathUtils.clamp(lookYaw,-1,1),4.5,dt);
       gaitYaw+=Math.atan2(Math.sin(root.rotation.y-gaitYaw),Math.cos(root.rotation.y-gaitYaw))*(1-Math.exp(-7*dt));
       if(moving&&!wasMoving){
         // Resume the lifted foot from toe-off, rather than jumping into the
@@ -156,16 +159,31 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
           f.pitch=f.stopPitch*(1-ease(q));f.contact=q===0||q===1;
           if(q===0)f.world.copy(f.settleStart);
         }else{
-          rootPoint(f.rest,f.world);f.pitch=0;f.contact=true;f.wasContact=true;f.anchor.copy(f.world);f.plantYaw=root.rotation.y;
+          // A stopped person turns by placing one shoe at a time. Retaining
+          // anchors here also keeps a planted foot still while the head looks.
+          rootPoint(f.rest,goal);
+          const twist=Math.abs(Math.atan2(Math.sin(root.rotation.y-f.plantYaw),Math.cos(root.rotation.y-f.plantYaw)));
+          const otherStepping=feet[1-i].pivotAge<.30;
+          if(f.pivotAge>=.30&&!otherStepping&&(twist>.32||Math.hypot(goal.x-f.anchor.x,goal.z-f.anchor.z)>.055)){
+            f.pivotStart.copy(f.anchor);f.anchor.copy(goal);f.pivotAge=0;f.plantYaw=root.rotation.y;
+          }
+          f.pivotAge+=dt;f.world.copy(f.anchor);
+          if(f.pivotAge<.30){const q=f.pivotAge/.30;f.world.lerpVectors(f.pivotStart,f.anchor,ease(q));f.world.y+=.032*Math.sin(q*Math.PI)**2;f.contact=false;}
+          else f.contact=true;
+          f.pitch=0;f.wasContact=true;
+          // The last settling step already reached the neutral stance; commit
+          // that placement before beginning subsequent idle turns.
+          if(stopTime-dt<.62){f.anchor.copy(goal);f.world.copy(goal);f.plantYaw=root.rotation.y;f.pivotAge=1;f.contact=true;}
         }
         // Lifting the ankle by the actual shoe support envelope prevents tilted
         // heel/toe poses from sinking through the path.
         f.world.y+=f.flatSole-soleRoll(f.hull,f.pitch);
       }
       wasMoving=moving;
-      hips.position.copy(hipsRest);hips.position.x+=Math.sin(phase+.15)*.016*blend/scale;
-      hips.position.y+=(-.008-.002*Math.cos(phase*2))*blend/scale+Math.sin(time*1.45)*.001*(1-blend)/scale;
-      hips.rotation.set(0,Math.sin(phase)*.04*blend,Math.sin(phase)*.008*blend);
+      const pace=THREE.MathUtils.clamp(bodySpeed/1.12,0,1.25),weightShift=Math.sin(phase+.15);
+      hips.position.copy(hipsRest);hips.position.x+=weightShift*(.011+.005*pace)*blend/scale;
+      hips.position.y+=(-.008-.004*Math.cos(phase*2))*blend/scale+Math.sin(time*1.45)*.001*(1-blend)/scale;
+      hips.rotation.set(rigAxis*acceleration*.006,Math.sin(phase)*(.025+.018*pace)*blend,rigAxis*weightShift*.013*blend);
       // Retain a little knee flexion, lowering the pelvis only when a grounded
       // foot would otherwise exceed its two-bone reach.
       if(calibrated)for(let i=0;i<feet.length;i++)if(feet[i].contact){
@@ -174,8 +192,8 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
         const data=legData[i],reach=data.upper+data.lower-.003,dx=localGoal.x-hipPoint.x,dz=localGoal.z-hipPoint.z;
         hips.position.y=Math.min(hips.position.y,localGoal.y-(hipPoint.y-hips.position.y)+Math.sqrt(Math.max(.01,reach*reach-dx*dx-dz*dz)));
       }
-      spine.rotation.set(rigAxis*.023*blend,-Math.sin(phase)*.025*blend,-turnRate*.020*blend);
-      chest.rotation.set(rigAxis*Math.sin(time*1.45)*.006,-Math.sin(phase)*.027*blend-turnRate*.015*blend,Math.sin(phase)*-.006*blend);
+      spine.rotation.set(rigAxis*(.016*pace*blend+acceleration*.012),-Math.sin(phase)*.020*blend,-rigAxis*turnRate*.013*blend);
+      chest.rotation.set(rigAxis*Math.sin(time*1.45)*.006,-Math.sin(phase)*.027*blend-turnRate*.016*blend+look*.10,rigAxis*Math.sin(phase)*-.010*blend);
       bodyInverse.copy(hips.quaternion).invert();
       for(let i=0;i<2;i++){
         const leg=legs[i],data=legData[i],f=feet[i];
@@ -193,20 +211,21 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
         footEuler.set(-f.pitch,0,0);footOrientation.setFromEuler(footEuler);
         if(calibrated&&f.contact)footOrientation.premultiply(sagittal.setFromAxisAngle(THREE.Object3D.DEFAULT_UP,THREE.MathUtils.clamp(Math.atan2(Math.sin(f.plantYaw-root.rotation.y),Math.cos(f.plantYaw-root.rotation.y)),-.55,.55)));
         leg.foot.quaternion.copy(hips.quaternion).multiply(leg.hip.quaternion).multiply(leg.knee.quaternion).invert().multiply(footOrientation);
-        const sign=i===0?1:-1,armPhase=phase+i*Math.PI,swing=-Math.cos(armPhase-.12)*.26*blend;
+        const sign=i===0?1:-1,armPhase=phase+i*Math.PI,swing=-Math.cos(armPhase-.12)*(.13+.13*pace)*blend;
         arms[i].shoulder.rotation.set(rigAxis*swing,Math.sin(armPhase)*.018*blend,rigAxis*sign*((companion?1.31:1.40)+(companion?.055:.020)*blend-Math.sin(time*.8)*.013));
-        arms[i].elbow.rotation.set(-rigAxis*.045,-sign*(.11+.13*blend+.045*Math.sin(armPhase-.4)*blend),0);
+        arms[i].elbow.rotation.set(-rigAxis*.045,-sign*(.11+.10*blend+.065*Math.sin(armPhase-.4)*blend),0);
         arms[i].hand.rotation.set(Math.sin(armPhase-.35)*.022*blend,0,rigAxis*sign*(.025+Math.sin(armPhase)*.018*blend));
       }
-      look=THREE.MathUtils.damp(look,THREE.MathUtils.clamp(lookYaw,-1,1),5,dt);
-      neck.rotation.y=look*.26;head.rotation.set(rigAxis*Math.sin(time*.83)*.012,look*.74,companion?rigAxis*Math.sin(time*.61)*.015:0);
-      gazeTarget.position.set(Math.sin(look*1.45)*2,character.getEyeHeight(),Math.cos(look*1.45)*2);
+      neck.rotation.y=look*.22;head.rotation.set(rigAxis*Math.sin(time*.83)*.012,look*.68,companion?rigAxis*Math.sin(time*.61)*.015:0);
+      // Eyes finish the turn after the chest, neck and head share its load.
+      gazeTarget.position.set(Math.sin(look*1.14)*2,character.getEyeHeight(),Math.cos(look*1.14)*2);
       const blinkPhase=(time+(companion?0:1.9))%4.9,blink=blinkPhase>4.69?Math.sin((blinkPhase-4.69)/.21*Math.PI):0;
       vrm.expressionManager?.setValue('blink',Math.max(0,blink));vrm.expressionManager?.setValue('happy',companion?.06:.055);vrm.expressionManager?.setValue('relaxed',companion?.025:.04);
       waveBlend=THREE.MathUtils.damp(waveBlend,wave?1:0,7,dt);
       if(companion&&waveBlend>.001){arms[0].shoulder.rotation.z-=rigAxis*.70*waveBlend;arms[0].shoulder.rotation.x-=rigAxis*.14*waveBlend;arms[0].elbow.rotation.y+=.10*waveBlend;arms[0].elbow.rotation.z-=rigAxis*2.10*waveBlend;arms[0].hand.rotation.z+=rigAxis*Math.sin(time*8)*.16*waveBlend;vrm.expressionManager?.setValue('happy',.06+waveBlend*.16);}
       vrm.update(dt);root.updateMatrixWorld(true);
       root.userData.character.gaitBlend=blend;root.userData.character.waveBlend=waveBlend;
+      root.userData.character.lookYaw=look;root.userData.character.turnRate=turnRate;
       root.userData.character.gait={phase:phaseCycles,strideScale,settling:!moving&&stopTime<.62,feet:feet.map((f,i)=>({cycle:cycles[i],contact:f.contact,pitch:f.pitch,goal:{x:f.world.x,y:f.world.y,z:f.world.z}}))};
       root.userData.character.feet=legs.map((_,i)=>{vrm.humanoid.getRawBoneNode(i===0?'leftFoot':'rightFoot')!.getWorldPosition(v);return {x:v.x,y:v.y,z:v.z};});
     }

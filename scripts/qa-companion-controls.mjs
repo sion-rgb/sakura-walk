@@ -1,0 +1,27 @@
+import {chromium} from '@playwright/test';
+import {mkdir,writeFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const out='artifacts/companion-controls';await mkdir(out,{recursive:true});
+const browser=await chromium.launch({channel:'chromium'});
+const context=await browser.newContext({viewport:{width:1440,height:900},recordVideo:{dir:`${out}/video`,size:{width:1440,height:900}}});
+const page=await context.newPage(),errors=[],samples=[];
+page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+await page.goto('http://127.0.0.1:5193/?qa=1');await page.waitForFunction(()=>!!window.__SAKURA__,null,{timeout:120000});
+await page.evaluate(()=>window.__THREE_GAME_TEST_HOOKS__.setState('companion-close'));
+const state=()=>page.evaluate(()=>window.__SAKURA__.state());
+async function capture(name){let s=await state();samples.push({name,state:s});await page.screenshot({path:`${out}/${name}.png`});return s;}
+await page.keyboard.press('KeyQ');let s=await capture('male-mutual-gaze');assert(s.lookTogether);await page.waitForTimeout(1200);
+await page.keyboard.press('Space');await page.waitForTimeout(1800);s=await capture('male-walk');assert(s.player.speed>.8&&s.companion.speed>.8);
+await page.keyboard.press('Space');await page.waitForTimeout(1500);s=await capture('male-stop');assert(s.player.speed<.035&&s.companion.speed<.10);
+const before=await state();await page.keyboard.press('KeyC');s=await state();assert.equal(s.controlledRole,'female');assert(Math.abs(s.player.x-before.player.x)<.05);assert(Math.abs(s.companion.z-before.companion.z)<.05);
+await page.keyboard.press('KeyQ');await page.waitForTimeout(1100);await capture('female-mutual-gaze');
+await page.keyboard.press('Space');await page.waitForTimeout(1800);s=await capture('female-walk');assert(s.player.speed>.8&&s.companion.speed>.8);
+await page.keyboard.press('Space');await page.keyboard.down('KeyD');await page.waitForTimeout(900);await capture('female-turn');await page.keyboard.up('KeyD');await page.waitForTimeout(1600);s=await capture('female-stop');assert(s.companion.speed<.035);
+await page.keyboard.press('KeyV');await page.keyboard.press('KeyQ');await page.waitForTimeout(1000);s=await capture('female-first-person');assert(!s.companionVisible&&s.playerVisible&&s.lookTogether);
+await page.keyboard.press('KeyC');await page.keyboard.press('KeyQ');await page.waitForTimeout(1000);s=await capture('male-first-person');assert(s.companionVisible&&!s.playerVisible);
+await page.keyboard.press('KeyV');await page.keyboard.press('KeyN');await page.waitForTimeout(5000);await capture('moonlight-gaze');
+await page.keyboard.press('Escape');await page.selectOption('#controlled-character','female');assert.equal((await state()).controlledRole,'female');await page.click('#resume');
+await page.keyboard.press('KeyP');s=await state();assert(s.photo&&s.playerVisible&&s.companionVisible);await page.keyboard.press('KeyP');
+await context.close();
+const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});const mp=await mobile.newPage();mp.on('pageerror',e=>errors.push(e.message));await mp.goto('http://127.0.0.1:5193/?qa=1');await mp.waitForFunction(()=>!!window.__SAKURA__,null,{timeout:120000});await mp.click('#begin');await mp.click('#character');await mp.click('#touch-look');await mp.waitForTimeout(1200);await mp.screenshot({path:`${out}/mobile.png`});let ms=await mp.evaluate(()=>window.__SAKURA__.state());assert.equal(ms.controlledRole,'female');assert(ms.lookTogether);assert(await mp.locator('#touch-look').isVisible());const boxes=await mp.locator('#top-actions button').evaluateAll(es=>es.map(e=>({id:e.id,x:e.getBoundingClientRect().x,right:e.getBoundingClientRect().right})));assert(boxes.every(b=>b.x>=0&&b.right<=390));await mp.click('#touch-stroll');await mp.waitForTimeout(1500);ms=await mp.evaluate(()=>window.__SAKURA__.state());assert(ms.companion.speed>.8&&ms.player.speed>.8);await mobile.close();await browser.close();
+await writeFile(`${out}/verification.json`,JSON.stringify({errors,samples,mobile:ms},null,2));assert.deepEqual(errors,[]);console.log(JSON.stringify({captures:samples.length,desktop:'passed',mobile:'passed',errors}));
