@@ -1,7 +1,7 @@
 import {chromium} from '@playwright/test';
 import {mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
-const out='artifacts/companion-controls';await mkdir(out,{recursive:true});
+const out=process.env.QA_OUT || 'artifacts/companion-controls';await mkdir(out,{recursive:true});
 const browser=await chromium.launch({channel:'chromium'});
 const context=await browser.newContext({viewport:{width:1440,height:900},recordVideo:{dir:`${out}/video`,size:{width:1440,height:900}}});
 const page=await context.newPage(),errors=[],samples=[];
@@ -12,13 +12,21 @@ const state=()=>page.evaluate(()=>window.__SAKURA__.state());
 async function capture(name){let s=await state();samples.push({name,state:s});await page.screenshot({path:`${out}/${name}.png`});return s;}
 await page.keyboard.press('KeyQ');let s=await capture('male-mutual-gaze');assert(s.lookTogether);await page.waitForTimeout(1200);
 await page.keyboard.press('Space');await page.waitForTimeout(1800);s=await capture('male-walk');assert(s.player.speed>.8&&s.companion.speed>.8);
+for (const role of ['female', 'male']) {
+  await page.keyboard.press('KeyC');
+  const handoff = await state();
+  assert.equal(handoff.controlledRole, role);
+  assert(handoff.autoWalk && handoff.lookTogether, 'Switching should keep the current stroll and gaze');
+  assert(handoff.player.speed > .8 && handoff.companion.speed > .8, 'Both walkers should retain their pace');
+}
 await page.keyboard.press('Space');await page.waitForTimeout(1500);s=await capture('male-stop');assert(s.player.speed<.035&&s.companion.speed<.10);
 const before=await state();await page.keyboard.press('KeyC');s=await state();assert.equal(s.controlledRole,'female');assert(Math.abs(s.player.x-before.player.x)<.05);assert(Math.abs(s.companion.z-before.companion.z)<.05);
-await page.keyboard.press('KeyQ');await page.waitForTimeout(1100);await capture('female-mutual-gaze');
+await page.waitForTimeout(1100);s=await capture('female-mutual-gaze');assert(s.lookTogether);
 await page.keyboard.press('Space');await page.waitForTimeout(1800);s=await capture('female-walk');assert(s.player.speed>.8&&s.companion.speed>.8);
 await page.keyboard.press('Space');await page.keyboard.down('KeyD');await page.waitForTimeout(900);await capture('female-turn');await page.keyboard.up('KeyD');await page.waitForTimeout(1600);s=await capture('female-stop');assert(s.companion.speed<.035);
-await page.keyboard.press('KeyV');await page.keyboard.press('KeyQ');await page.waitForTimeout(1000);s=await capture('female-first-person');assert(!s.companionVisible&&s.playerVisible&&s.lookTogether);
-await page.keyboard.press('KeyC');await page.keyboard.press('KeyQ');await page.waitForTimeout(1000);s=await capture('male-first-person');assert(s.companionVisible&&!s.playerVisible);
+await page.keyboard.press('KeyV');await page.waitForTimeout(1000);s=await capture('female-first-person');assert(!s.companionVisible&&s.playerVisible&&s.lookTogether);
+await page.keyboard.press('KeyQ');assert(!(await state()).lookTogether);await page.keyboard.press('KeyQ');
+await page.keyboard.press('KeyC');await page.waitForTimeout(1000);s=await capture('male-first-person');assert(s.companionVisible&&!s.playerVisible&&s.lookTogether);
 await page.keyboard.press('KeyV');await page.keyboard.press('KeyN');await page.waitForTimeout(5000);await capture('moonlight-gaze');
 await page.keyboard.press('Escape');await page.selectOption('#controlled-character','female');assert.equal((await state()).controlledRole,'female');await page.click('#resume');
 await page.keyboard.press('KeyP');s=await state();assert(s.photo&&s.playerVisible&&s.companionVisible);await page.keyboard.press('KeyP');

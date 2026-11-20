@@ -50,7 +50,7 @@ const results = await page.evaluate(async()=>{
     });
     for(const scenario of ['steady','slow','start-stop','turn','reverse','restart']) {
       actor.root.position.set(0,0,0); actor.root.rotation.y=0; actor.resetMotion();
-      const samples=[]; let distance=0;
+      const samples=[],eye=new THREE.Vector3();let distance=0,lastEyeY=0,startEyeStep=0;
       for(let frame=0;frame<360;frame++) {
         let speed=scenario==='slow'?.35:1.12;
         if(scenario==='start-stop') speed=frame<45?1.12*frame/45:frame<150?1.12:frame<175?1.12*(175-frame)/25:0;
@@ -61,6 +61,9 @@ const results = await page.evaluate(async()=>{
         actor.root.position.x+=Math.sin(motionYaw)*speed/60;
         actor.root.position.z+=Math.cos(motionYaw)*speed/60; distance+=speed/60;
         actor.update(1/60,frame/60,speed);
+        actor.getGazeTarget(eye);
+        if(frame>0&&frame<90)startEyeStep=Math.max(startEyeStep,Math.abs(eye.y-lastEyeY));
+        lastEyeY=eye.y;
         const metadata=actor.root.userData.character, soles=[Infinity,Infinity];
         if(frame%6===0)for(const shoe of shoes) {
           shoe.skeleton.update(); const p=new THREE.Vector3(), local=new THREE.Vector3();
@@ -81,7 +84,7 @@ const results = await page.evaluate(async()=>{
           maxContactDrift=Math.max(maxContactDrift,displacement);
       }
       const support=samples.filter(s=>s.soles&&(s.gait.feet[0].contact||s.gait.feet[1].contact)).map(s=>Math.min(...s.soles));
-      output.push({role:role===0?'companion':'player',scenario,distance,maxContactDrift,maxFrameTravel,supportRange:[Math.min(...support),Math.max(...support)],samples});
+      output.push({role:role===0?'companion':'player',scenario,distance,startEyeStep,maxContactDrift,maxFrameTravel,supportRange:[Math.min(...support),Math.max(...support)],samples});
     }
   }
   return output;
@@ -92,6 +95,9 @@ for(const result of results) {
   check(`${label}: grounded soles`,()=>assert(result.supportRange[0]>-.008&&result.supportRange[1]<.016,JSON.stringify(result.supportRange)));
   check(`${label}: planted-foot drift below 3 mm/frame`,()=>assert(result.maxContactDrift<.003,result.maxContactDrift));
   check(`${label}: no ankle teleport above 9 cm/frame`,()=>assert(result.maxFrameTravel<.09,result.maxFrameTravel));
+  if(result.scenario==='steady'||result.scenario==='start-stop'){
+    check(`${label}: no abrupt eye-height change on takeoff`,()=>assert(result.startEyeStep<.05,result.startEyeStep));
+  }
   if(result.scenario==='start-stop')check(`${label}: settles to standing`,()=>{
     assert(!result.samples.at(-1).gait.settling);
     assert(result.samples.at(-1).gait.feet.every(f=>f.contact&&Math.abs(f.pitch)<.0001));

@@ -8,7 +8,7 @@ export interface SakuraEnvironment {
   setNight(amount: number): void;
   setQuality(mode: string): void;
   update(dt: number, time: number, focus: THREE.Vector3): void;
-  colliders: Array<{ x: number; z: number; radius: number }>;
+  colliders: Array<{ x: number; z: number; radius: number; height?: number }>;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   landmarks: Array<{ name: string; z: number }>;
 }
@@ -137,14 +137,17 @@ type Transform = { position: THREE.Vector3; scale: THREE.Vector3; rotation: THRE
 export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   const root = new THREE.Group(); root.name = 'Sakura avenue · authored garden'; scene.add(root);
   const rng = random(20260927);
-  const colliders: Array<{ x: number; z: number; radius: number }> = [];
+  const colliders: SakuraEnvironment['colliders'] = [];
   const matrix = new THREE.Matrix4(), quat = new THREE.Quaternion();
   const animatedMaterials: THREE.Material[] = [];
   const detailMeshes: Array<{ mesh: THREE.InstancedMesh; count: number; density: number }> = [];
   const lanternPositions: THREE.Vector3[] = [];
+  const benchSites = [[-5.1, 18, -1], [5.1, 47, 1], [-5.1, 84, -1], [5.1, 118, 1], [-5.1, 151, -1]];
   let nightAmount = 0;
   let quality = 'high';
   const baked = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const sectionLength = 32;
+  const trunkBanks = Array.from({ length: 2 }, () => new Map<number, THREE.BufferGeometry[]>());
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
   const color = (hex: THREE.ColorRepresentation) => new THREE.Color(hex);
   const material = (hex: THREE.ColorRepresentation, roughness = .86) => new THREE.MeshStandardMaterial({ color: hex, roughness, metalness: 0 });
@@ -195,6 +198,11 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   function cylinder(mat: THREE.Material, x: number, y: number, z: number, rTop: number, rBottom: number, h: number, segments = 8) {
     addBaked(new THREE.CylinderGeometry(rTop, rBottom, h, segments), mat, v(x, y, z));
   }
+  function addToSection<T>(sections: Map<number, T[]>, key: number, item: T) {
+    const section = sections.get(key);
+    if (section) section.push(item);
+    else sections.set(key, [item]);
+  }
   function branch(points: THREE.Vector3[], radii: number[], segments = 9, sides = 7) {
     const curve = new THREE.CatmullRomCurve3(points);
     const geo = new THREE.TubeGeometry(curve, segments, 1, sides, false);
@@ -209,7 +217,9 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
         positions.setXYZ(index, middle.x + (positions.getX(index) - middle.x) * r, middle.y + (positions.getY(index) - middle.y) * r, middle.z + (positions.getZ(index) - middle.z) * r);
       }
     }
-    geo.computeVertexNormals(); addBaked(geo, bark);
+    geo.computeVertexNormals();
+    const origin = points[0];
+    addToSection(trunkBanks[origin.x < 0 ? 0 : 1], Math.floor(origin.z / sectionLength), geo);
   }
   function instance(name: string, geometry: THREE.BufferGeometry, mat: THREE.Material, transforms: Transform[], shadows = false) {
     const mesh = new THREE.InstancedMesh(geometry, mat, transforms.length); mesh.name = name;
@@ -226,13 +236,14 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
       mat.userData.shader = shader;
       shader.vertexShader = `uniform float uGardenTime;\n` + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
-          float windPhase = instanceMatrix[3].x * 0.47 + instanceMatrix[3].z * 0.38;
+          vec2 gardenXZ = instanceMatrix[3].xz;
         #else
-          float windPhase = 0.0;
+          vec2 gardenXZ = vec2(0.0);
         #endif
+        float windPhase = dot(gardenXZ,vec2(.47,.38));
         float bend = max(position.y, 0.0);
-        float gust = 0.70 + 0.30 * sin(uGardenTime * 0.19 + windPhase * 0.11);
-        transformed.x += sin(uGardenTime * 0.78 + windPhase) * ${amount.toFixed(4)} * bend * gust;
+        float gust = smoothstep(.20,.94,sin(uGardenTime*.38 + dot(gardenXZ,vec2(.19,-.13))));
+        transformed.x += (sin(uGardenTime * 0.78 + windPhase) * .65 + gust * .75) * ${amount.toFixed(4)} * bend;
         transformed.z += cos(uGardenTime * 0.63 + windPhase * 1.3) * ${(amount * .6).toFixed(4)} * bend;`);
     };
     mat.customProgramCacheKey = () => key; animatedMaterials.push(mat);
@@ -353,11 +364,23 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
       }
     }
   }
+  const lastTreeZ = [-Infinity,-Infinity];
   for (let i = -3; i < 24; i++) for (const side of [-1, 1]) {
-    const z = -13 + i * 7.55 + (side === 1 ? 2.1 : 0) + (rng() - .5) * 2.1;
-    const x = side * (5.35 + rng() * 1.3);
-    tree(x, z, .79 + rng() * .37, 500 + i * 7 + (side + 1) * 19);
+    const row = -13 + i * 7.55 + (side === 1 ? 2.1 : 0);
+    // The banks part at the sunlit promenade; farther along, their crowns close overhead.
+    const clearing = Math.exp(-(((row - 44) / 13) ** 2));
+    const bank = side<0?0:1, minZ = lastTreeZ[bank]+3.3;
+    let z = Math.max(minZ,row + (row - 44) * clearing * .63 + 1.6 * Math.sin(i * 1.13 + side * 1.8) + (rng() - .5) * 2.1);
+    let setback = 5.45 + rng() * 1.05 + .52 * Math.sin(i * .76 + side) + clearing * .58;
+    if (side === 1 && z > 0 && z < 64) setback = Math.min(setback, 6.18 + .42 * Math.sin(z * .12));
+    for (const [bx,bz] of benchSites) {
+      if (Math.abs(side*setback-bx)<1.65 && Math.abs(z-bz)<2.05) z=z<bz && bz-2.05>=minZ?bz-2.05:bz+2.05;
+    }
+    lastTreeZ[bank]=z;
+    const scale = (.79 + rng() * .37) * (1 - clearing * .15);
+    tree(side * setback, z, scale, 500 + i * 7 + (side + 1) * 19);
   }
+  const avenueTrees = colliders.slice();
   // Secondary blossom groves dissolve behind the fence and open garden side vistas.
   for (let i = 0; i < 11; i++) {
     const side = i % 2 ? 1 : -1;
@@ -462,7 +485,16 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     const side=i%2?1:-1,z=168+rng()*36,x=side*(4.15+rng()*8),w=1.5+rng()*1.9,h=.7+rng()*1.1;
     shrubVolumes.push({position:v(x,h*.35-.07,z),scale:v(w,h,w*(.78+rng()*.32)),rotation:new THREE.Euler(0,rng()*6.28,0),color:color('#a2b395').multiplyScalar(.84+rng()*.18)});
   }
-  instance('Rounded woodland understory masses', shrubGeo, shrubMat, shrubVolumes);
+  const shrubSections = new Map<number, Transform[]>();
+  for (const shrub of shrubVolumes) {
+    const bank = shrub.position.x < 0 ? 0 : 1;
+    addToSection(shrubSections, 2 * Math.floor(shrub.position.z / sectionLength) + bank, shrub);
+  }
+  for (const shrubs of shrubSections.values()) {
+    const mesh = instance('Rounded woodland understory masses', shrubGeo, shrubMat, shrubs);
+    // The shared wind shader bends the tallest crowns just beyond the rest pose.
+    mesh.boundingSphere!.radius += .15;
+  }
   // Small sprays break up the contour of each supporting volume. Their normals
   // point out from the canopy, so the light reads as leaves around a living crown.
   const edgeLeaves: Transform[] = [], shellRandom = random(78311);
@@ -536,7 +568,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   });
   const plantGeo = new THREE.PlaneGeometry(1, 1); plantGeo.translate(0, .5, 0);
   const plantRows: Transform[][] = [[], [], []];
-  const furnitureSites = [[-5.1, 18, 1.35], [5.1, 47, 1.35], [-5.1, 84, 1.35], [5.1, 118, 1.35], [-5.1, 151, 1.35]];
+  const furnitureSites = benchSites.map(([x,z])=>[x,z,1.35]);
   for (let z = 4; z < 159; z += 18.5) furnitureSites.push([-4.23, z, .55], [4.23, z + 3, .55]);
   for (const side of [-1, 1]) for (let z = -39; z < 165; z += .85) {
     const band = Math.sin(z * .26 + side * 1.1), variant = band > .22 ? 0 : band < -.42 ? 1 : 2;
@@ -697,7 +729,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     box(stone, x, 1.56, z, .73, .055, .73);
     cylinder(stone, x, 1.86, z, .075, .12, .13, 8);
     cylinder(darkStone, x, 1.96, z, .01, .075, .13, 8);
-    colliders.push({ x, z, radius: .40 });
+    colliders.push({ x, z, radius: .40, height: 2.04 });
   }
   for (let z = 4; z < 159; z += 18.5) { lantern(-4.23, z); lantern(4.23, z + 3); }
 
@@ -714,18 +746,21 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     }
     for (let j = 0; j < 4; j++) piece(wood, 0, .55, -.25 + j * .15, 2.15, .055, .12);
     for (let j = 0; j < 3; j++) piece(wood, 0, .77 + j * .15, .28, 2.15, .11, .055);
-    colliders.push({ x, z, radius: 1.15 });
+    colliders.push({ x, z, radius: 1.15, height: 1.12 });
   }
-  [[-5.1, 18, -1], [5.1, 47, 1], [-5.1, 84, -1], [5.1, 118, 1], [-5.1, 151, -1]].forEach(([x, z, side]) => bench(x, z, side));
+  benchSites.forEach(([x, z, side]) => bench(x, z, side));
 
   // Petals carpet the granite edges in loose, wind-sorted drifts, with a few across the lane.
   const petalShape = new THREE.Shape(); petalShape.moveTo(0, -.52); petalShape.bezierCurveTo(-.50, -.12, -.54, .50, -.12, .46); petalShape.lineTo(0, .29); petalShape.lineTo(.12, .46); petalShape.bezierCurveTo(.54, .50, .50, -.12, 0, -.52);
   const petalGeo = new THREE.ShapeGeometry(petalShape, 3);
   const groundPetals: Transform[] = [];
   for (let i = 0; i < 11500; i++) {
-    const side = rng() > .5 ? 1 : -1;
-    const x = i % 4 ? side * (2.72 + rng() * 2.15) : (rng() - .5) * 7;
-    const z = -42 + rng() * 207, s = .030 + rng() * .047;
+    const tree = avenueTrees[Math.floor(rng() * avenueTrees.length)];
+    const side = Math.sign(tree.x), across = rng(), along = rng();
+    // Skew loose drifts downwind of actual crowns, with thinner scatter between them.
+    const x = i % 4 ? side * (2.45 + across * 2.2 + .40 * Math.sin(tree.z * .37 + along * 3.2)) : (across - .5) * 7;
+    const z = i % 4 ? tree.z + (along - .42) * (4.8 + across * 3.2) : -42 + along * 207;
+    const s = .030 + rng() * .047;
     groundPetals.push({ position: v(x, Math.abs(x) > 3.82 ? -.043 : .007 + rng() * .002, z), scale: v(s, s * (.7 + rng() * .5), s), rotation: new THREE.Euler(-Math.PI / 2, 0, rng() * 6.28), color: color(i % 4 === 0 ? '#f1bed0' : i % 3 === 0 ? '#e8a1bb' : '#f9dce1') });
   }
   const petalCarpetMat = new THREE.MeshLambertMaterial({side:THREE.DoubleSide});
@@ -844,17 +879,52 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   }
   instance('Moss and garden stones', rockGeo, stone, rockTransforms, false);
 
-  // Pool all structural geometry by material, for low CPU / draw-call overhead.
-  for (const [mat, geometries] of baked) {
+  function mergeStructure(mat: THREE.Material, geometries: THREE.BufferGeometry[], name: string) {
     // The components all carry position, normal and UV attributes.
     // Extruded curved eaves are non-indexed; boxes/cylinders use indices.
     const mixedIndices = geometries.some(g => Boolean(g.index) !== Boolean(geometries[0].index));
     const normalized = mixedIndices ? geometries.map(g => g.index ? g.toNonIndexed() : g) : geometries;
     const merged = mergeGeometries(normalized, false)!;
-    const mesh = new THREE.Mesh(merged, mat); mesh.name = mat === bark ? 'Continuous curved sakura trunks and twigs' : 'Garden craft · merged structure';
+    const mesh = new THREE.Mesh(merged, mat); mesh.name = name;
     mesh.castShadow = true; mesh.receiveShadow = true; root.add(mesh);
     geometries.forEach(g => g.dispose());
     if (mixedIndices) normalized.forEach((g, i) => { if (g !== geometries[i]) g.dispose(); });
+    return mesh;
+  }
+  for (const [mat, geometries] of baked) mergeStructure(mat, geometries, 'Garden craft · merged structure');
+
+  // Store indices in road order. Each bank needs only one draw per pass,
+  // whether the viewing camera sees the whole bank or the sun sees a few trees.
+  for (const sections of trunkBanks) {
+    const parts: THREE.BufferGeometry[] = [];
+    const spans: Array<{ bounds: THREE.Box3; start: number; end: number }> = [];
+    let indexCount = 0;
+    for (const [, branches] of [...sections].sort(([a], [b]) => a - b)) {
+      const start = indexCount, bounds = new THREE.Box3();
+      for (const part of branches) {
+        part.computeBoundingBox();
+        bounds.union(part.boundingBox!);
+        indexCount += part.index!.count; // TubeGeometry is indexed.
+        parts.push(part);
+      }
+      spans.push({ bounds, start, end: indexCount });
+    }
+    const trunks = mergeStructure(bark, parts, 'Continuous curved sakura trunks and twigs');
+    const clipFromBank = new THREE.Matrix4(), frustum = new THREE.Frustum();
+    function selectRange(camera: THREE.Camera) {
+      clipFromBank.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(trunks.matrixWorld);
+      frustum.setFromProjectionMatrix(clipFromBank, camera.coordinateSystem, camera.reversedDepth);
+      let first = indexCount, end = 0;
+      for (const span of spans) {
+        if (frustum.intersectsBox(span.bounds)) {
+          first = Math.min(first, span.start);
+          end = span.end;
+        }
+      }
+      trunks.geometry.setDrawRange(first, Math.max(0, end - first));
+    }
+    trunks.onBeforeRender = (_renderer, _scene, camera) => selectRange(camera);
+    trunks.onBeforeShadow = (_renderer, _object, _camera, shadowCamera) => selectRange(shadowCamera);
   }
 
   // Instanced geometry keeps 2,600 gently tumbling petals on the GPU. They occupy
@@ -870,11 +940,14 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   flyingGeo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seeds, 4)); flyingGeo.setAttribute('aTint', new THREE.InstancedBufferAttribute(tints, 3)); flyingGeo.instanceCount = flyingCount;
   const flyingMat = new THREE.ShaderMaterial({
     side: THREE.DoubleSide, transparent: true, depthWrite: false, fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uNight: { value: 0 } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
+      uTime: {value:0}, uNight: {value:0},
+      uLanterns: {value:[new THREE.Vector4(),new THREE.Vector4()]}
+    }]),
     vertexShader: `
       uniform float uTime;
       attribute vec4 aSeed; attribute vec3 aTint;
-      uniform float uNight; varying vec3 vTint; varying float vAlpha;
+      uniform float uNight; uniform vec4 uLanterns[2]; varying vec3 vTint; varying float vAlpha;
       #include <fog_pars_vertex>
       void main() {
         float t = uTime;
@@ -886,20 +959,27 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
         p.xy = mat2(cos(a), -sin(a), sin(a), cos(a)) * p.xy;
         p.yz = mat2(cos(b), -sin(b), sin(b), cos(b)) * p.yz;
         float fall = mod(aSeed.y - t * (0.25 + 0.035 * phase), 10.0);
-        float gust = pow(max(0.0,sin(t * 0.13 + phase * 0.07)), 4.0);
-        vec3 center = vec3(aSeed.x + sin(t * 0.29 + phase) * 1.30 + sin(t * 0.73 + phase) * 0.26 + gust * sin(t*.31+phase)*.8,
-          fall, aSeed.z + sin(t * 0.21 + phase) * 1.80 + cos(t * 0.48 + phase) * 0.40 + gust*.4);
+        float gust = smoothstep(.20,.94,sin(t * .38 - aSeed.z * .13 + aSeed.x * .19));
+        vec3 center = vec3(aSeed.x + sin(t * .29 + phase) * 1.30 + sin(t * .73 + phase) * .26 + gust * 1.35,
+          fall + gust * .22, aSeed.z + sin(t * .21 + phase) * 1.80 + cos(t * .48 + phase) * .40 + gust * .65);
         vec4 mvPosition = modelViewMatrix * vec4(p + center, 1.0);
         gl_Position = projectionMatrix * mvPosition;
-        vTint = aTint * (0.92 + abs(sin(b)) * 0.12);
-        vAlpha = smoothstep(0.0, 0.32, fall) * (1.0 - smoothstep(8.8, 10.0, fall));
+        vec3 light = mix(vec3(1.),vec3(.30,.38,.58),uNight);
+        if(uNight>0.) for(int i=0;i<2;i++){
+          vec3 delta=center-uLanterns[i].xyz;
+          float d2=dot(delta,delta);
+          light+=vec3(1.,.54,.24)*uLanterns[i].w*(1.-smoothstep(9.,72.,d2))/(1.+d2);
+        }
+        vTint = aTint * (0.92 + abs(sin(b)) * 0.12) * light;
+        float lensFade = smoothstep(.65, 2.2, -mvPosition.z);
+        vAlpha = lensFade * smoothstep(0.0, 0.32, fall) * (1.0 - smoothstep(8.8, 10.0, fall));
         #include <fog_vertex>
       }`,
     fragmentShader: `
-      uniform float uNight; varying vec3 vTint; varying float vAlpha;
+      varying vec3 vTint; varying float vAlpha;
       #include <fog_pars_fragment>
       void main() {
-        gl_FragColor = vec4(vTint * mix(vec3(1.0),vec3(.30,.38,.58),uNight), vAlpha * 0.94);
+        gl_FragColor = vec4(vTint, vAlpha * 0.94);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
         #include <fog_fragment>
@@ -910,9 +990,37 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
   // Warm light is pooled onto the two closest stone lanterns. Distant lanterns
   // retain their emissive chambers without multiplying dynamic lighting cost.
   const lanternLights = Array.from({length:2}, (_,i) => {
-    const light = new THREE.PointLight('#ffd09a',0,7.5,2); light.name = `Nearest tōrō warm light ${i+1}`; root.add(light); return light;
+    const light = new THREE.PointLight('#ffca90',0,9.5,2); light.name = `Nearest tōrō warm light ${i+1}`; root.add(light); return light;
   });
   const lanternSlots=lanternLights.map(()=>({index:-1,pending:-1,fade:0}));
+  function setLanternIntensity(i: number) {
+    const light=lanternLights[i],p=light.position;
+    light.intensity=nightAmount*15*lanternSlots[i].fade;
+    flyingMat.uniforms.uLanterns.value[i].set(p.x,p.y,p.z,light.intensity*.19);
+  }
+  let lastLanternX=Infinity,lastLanternZ=Infinity;
+  function updateLanterns(focus: THREE.Vector3,dt: number) {
+    if (focus.x!==lastLanternX || focus.z!==lastLanternZ) {
+      let first=-1,second=-1,nearest=Infinity,next=Infinity;
+      for(let i=0;i<lanternPositions.length;i++){
+        const d=lanternPositions[i].distanceToSquared(focus);
+        if(d<nearest){second=first;next=nearest;first=i;nearest=d;}
+        else if(d<next){second=i;next=d;}
+      }
+      const swap=lanternSlots[0].index===second || lanternSlots[1].index===first;
+      lanternSlots[0].pending=swap?second:first;
+      lanternSlots[1].pending=swap?first:second;
+      lastLanternX=focus.x;lastLanternZ=focus.z;
+    }
+    for(let i=0;i<lanternSlots.length;i++){
+      const slot=lanternSlots[i],light=lanternLights[i];
+      if(slot.index!==slot.pending){
+        slot.fade=Math.max(0,slot.fade-dt*3.5);
+        if(slot.fade<.012){slot.index=slot.pending;light.position.copy(lanternPositions[slot.index]);}
+      }else slot.fade=Math.min(1,slot.fade+dt*2.8);
+      setLanternIntensity(i);
+    }
+  }
   const fireflyCount = 300, fireflyGeo = new THREE.BufferGeometry();
   const fireflyPositions = new Float32Array(fireflyCount*3), fireflyPhases = new Float32Array(fireflyCount);
   for (let i=0;i<fireflyCount;i++) {
@@ -970,7 +1078,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
     setNight(amount: number) {
       nightAmount = THREE.MathUtils.clamp(amount,0,1);
       lanternLight.emissiveIntensity = THREE.MathUtils.lerp(.35,3.2,nightAmount);
-      lanternLights.forEach((light,i)=>{light.intensity=nightAmount*13.5*lanternSlots[i].fade;});
+      for(let i=0;i<lanternLights.length;i++) setLanternIntensity(i);
       pavingMaterial.userData.setNight?.(nightAmount);
       bakedShade.material.opacity = THREE.MathUtils.lerp(.12,.025,nightAmount);
       fireflyMat.uniforms.uNight.value = nightAmount;
@@ -991,18 +1099,7 @@ export function createEnvironment(scene: THREE.Scene): SakuraEnvironment {
       fireflyMat.uniforms.uTime.value = time;
       const range = quality==='balanced'?48:quality==='cinematic'?86:68;
       for (const detail of detailMeshes) if (typeof detail.mesh.userData.sectionZ==='number') detail.mesh.visible=Math.abs(detail.mesh.userData.sectionZ-focus.z)<range;
-      const closest = lanternPositions.map((p,i)=>({i,d:p.distanceToSquared(focus)})).sort((a,b)=>a.d-b.d);
-      const desired=closest.slice(0,2).map(item=>item.i),claimed=new Set<number>();
-      for(const slot of lanternSlots)if(desired.includes(slot.index))claimed.add(slot.index);
-      lanternLights.forEach((light,i)=>{
-        const slot=lanternSlots[i];
-        const target=desired.includes(slot.index)?slot.index:desired.find(index=>!claimed.has(index))!;
-        claimed.add(target); slot.pending=target;
-        if(slot.index<0){slot.index=target;slot.fade=1;light.position.copy(lanternPositions[target]);}
-        if(slot.pending!==slot.index){slot.fade=Math.max(0,slot.fade-Math.min(dt,.05)*3.5);if(slot.fade<.012){slot.index=slot.pending;light.position.copy(lanternPositions[slot.index]);}}
-        else slot.fade=Math.min(1,slot.fade+Math.min(dt,.05)*2.8);
-        light.intensity = nightAmount * 13.5 * slot.fade;
-      });
+      updateLanterns(focus,Math.min(dt,.05));
       waterMap.offset.y = time * .008;
       waterNormal.offset.set(time * .004, time * .012);
       for (const mat of animatedMaterials) if (mat.userData.shader) mat.userData.shader.uniforms.uGardenTime.value = time;

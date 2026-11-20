@@ -6,11 +6,91 @@ dialog{max-height:calc(100dvh - 32px);overflow-y:auto}@media(min-height:601px) a
 
 /* The moonlight switch keeps the existing cream and rose identity. */
 body.moonlight #controls{color:#f3e4df;text-shadow:0 1px 8px #0d1930}body.moonlight #controls kbd{border-color:#f6ead955;background:#f6ead92b}body.moonlight #photo-tools{color:#f3e4df}body.moonlight #day-night{background:#854a60;color:#fff9f5}
-@media(max-width:520px){#day-night{position:fixed;right:25px;top:99px;width:44px;height:44px}}
+
 @media(min-height:601px) and (max-height:780px){.settings-fields label{padding:8px 0}.settings-fields{margin-bottom:14px}}
 
 body.moonlight #controls .text-btn{color:#493b40}body.moonlight #controls .text-btn[aria-pressed=true]{color:#fff9f5}
 
-#character[aria-pressed=true]{background:#854a60;color:#fff9f5}#character{font-size:19px}@media(max-width:520px){#character{position:fixed;right:78px;top:99px;width:44px;height:44px}}
+#character[aria-pressed=true]{background:#854a60;color:#fff9f5}#character{font-size:19px}
 
-@media(max-width:520px){body.started #chapter{top:165px;max-width:calc(100vw - 50px)}#chapter strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+
+.brand { background: transparent; border: 0; padding: 0; text-align: left; }
+.brand:disabled { opacity: 1; cursor: default; }
+.brand:disabled:hover { transform: none; }
+:where(input, select):focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+#world:focus-visible { outline: 2px solid var(--rose); outline-offset: -6px; }
+.icon-btn { min-width: 44px; min-height: 44px; }
+.touch-actions button {
+  width: 54px; height: 54px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  color: #694253; background: #fff8eef0; font-size: 10px; line-height: 1;
+}
+.touch-actions button span { font-size: 20px; }
+#greet[aria-disabled="true"], #touch-greet[aria-disabled="true"] {
+  color: #754555; background: #f6e0e6; cursor: default;
+}
+#greet[aria-disabled="true"] > span, #touch-greet[aria-disabled="true"] > span { color: #9a4564; }
+#toast { text-align: center; max-width: calc(100vw - 38px); width: max-content; }
+#error {
+  inset: 50% auto auto 50%; transform: translate(-50%, -50%);
+  width: min(380px, calc(100vw - 40px)); box-shadow: 0 12px 50px #50314424;
+}
+#error h2 { font: 400 38px/1.05 'Cormorant Garamond', Georgia, serif; margin: 0; }
+#error p { font-size: 14px; line-height: 1.65; margin: 14px 0 22px; }
+@media (pointer: coarse) {
+  #touch-controls {
+    bottom: max(25px, env(safe-area-inset-bottom));
+    left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+  }
+  .settings-fields label { min-height: 44px; }
+  .settings-fields select { min-height: 44px; }
+  .settings-controls { display: none; }
+}
+@media (max-width: 520px) {
+  #masthead {
+    top: max(17px, env(safe-area-inset-top));
+    left: max(14px, env(safe-area-inset-left)); right: max(14px, env(safe-area-inset-right));
+  }
+  body.started .brand { width: 44px; height: 44px; padding: 0; margin: 0; justify-content: center; }
+  body.started .brand span { display: none; }
+  body.started .brand img { width: 25px; }
+  #top-actions { gap: 5px; }
+  body.started #chapter {
+    top: calc(max(17px, env(safe-area-inset-top)) + 55px); left: 14px;
+    max-width: calc(100vw - 28px); padding: 8px 17px 8px 11px; margin: 0;
+  }
+  #chapter strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast { top: calc(max(17px, env(safe-area-inset-top)) + 118px); }
+  #photo-tools { inset: max(20px, env(safe-area-inset-top)) 17px max(20px, env(safe-area-inset-bottom)); }
+}
+@media (max-width: 355px) {
+  body.started #masthead { flex-wrap: wrap; gap: 5px; }
+  body.started #top-actions { margin-left: auto; }
+  body.started #chapter { top: calc(max(17px, env(safe-area-inset-top)) + 104px); }
+  #toast { top: calc(max(17px, env(safe-area-inset-top)) + 167px); }
+  #joystick { width: 88px; height: 88px; }
+  .touch-actions { gap: 4px; }
+}
+#greet-label { color: inherit; font: inherit; }
+.touch-actions .look-control { font-size: 10px; }
+@media (pointer: fine) {
+  .control-keys {
+    padding: 9px 12px; gap: clamp(8px, 1.25vw, 18px);
+    background: #fff8efd9; color: #513945; text-shadow: none;
+    border-radius: 3px; backdrop-filter: blur(8px);
+  }
+  #controls .text-btn { color: #513945; background: #fff8efdd; }
+  #controls .text-btn[aria-pressed="true"] { background: var(--rose); color: #fff9f5; }
+  #controls #greet[aria-disabled="true"] { background: #f6e0e6; }
+}
+@media (max-width: 660px) and (pointer: fine) {
+  .control-keys { display: none; }
+  #controls { justify-content: center; }
+}
+@media (pointer: fine) and (min-height: 601px) and (max-height: 780px) {
+  #settings { padding-block: 18px; }
+  #settings .settings-fields label { padding-block: 5px; }
+  #settings .settings-controls { margin-top: 6px; }
+  #settings .text-btn { margin-block: 6px; }
+}
