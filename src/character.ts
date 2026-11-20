@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ease, footCurve, soleHull, soleRoll, STRIDE, type SolePoint } from './sakura-gait';
+import { ease, footCurve, soleHull, soleRoll, STANCE, STRIDE, type SolePoint } from './sakura-gait';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName, MToonMaterial } from '@pixiv/three-vrm';
@@ -7,7 +7,7 @@ import { VRMLoaderPlugin, VRMUtils, type VRM, type VRMHumanBoneName, MToonMateri
 /** Skinned anime avatars. The story identifies both characters as fictional adults. */
 export interface Character {
   root: THREE.Group;
-  update(dt: number, time: number, speed: number, lookYaw?: number, wave?: boolean): void;
+  update(dt: number, time: number, speed: number, lookYaw?: number, wave?: boolean, lookPitch?: number, engagement?: number): void;
   resetMotion(): void;
   getEyeHeight(): number;
   getGazeTarget(target?: THREE.Vector3): THREE.Vector3;
@@ -78,17 +78,28 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
   // the original -Z convention and map X/Z rotations into the model's basis.
   const rigAxis=vrm.meta?.metaVersion==='1'?-1:1;
   const hips=bone('hips'),head=bone('head'),neck=bone('neck'),spine=bone('spine'),chest=bone('chest'),hipsRest=hips.position.clone();
+  const rawHead=vrm.humanoid.getRawBoneNode('head')!;
+  const leftEye=vrm.humanoid.getRawBoneNode('leftEye'),rightEye=vrm.humanoid.getRawBoneNode('rightEye');
+  const eyePoint=new THREE.Vector3();
+  const inspectGait=new URLSearchParams(location.search).has('qa');
+  const rawFeet=inspectGait?(['leftFoot','rightFoot'] as const).map(name=>vrm.humanoid.getRawBoneNode(name)!):[];
   const legs=(['left','right'] as const).map(side=>({hip:bone(`${side}UpperLeg`),knee:bone(`${side}LowerLeg`),foot:bone(`${side}Foot`)}));
   const arms=(['left','right'] as const).map(side=>({shoulder:bone(`${side}UpperArm`),elbow:bone(`${side}LowerArm`),hand:bone(`${side}Hand`)}));
   for(const side of ['left','right'] as const){const sign=(side==='left'?1:-1)*rigAxis;for(const finger of ['Index','Middle','Ring','Little'] as const){for(const segment of ['Proximal','Intermediate','Distal'] as const){const b=bone(`${side}${finger}${segment}`);if(b)b.rotation.z=sign*(segment==='Proximal'?.11:.18);}}}
   const legData=legs.map(leg=>({upper:leg.knee.position.length(),lower:leg.foot.position.length(),footRest:leg.knee.position.y+leg.foot.position.y,footZ:(leg.knee.position.z+leg.foot.position.z)*rigAxis,upperRestAngle:Math.atan2(-leg.knee.position.z*rigAxis,-leg.knee.position.y),lowerRestAngle:Math.atan2(-leg.foot.position.z*rigAxis,-leg.foot.position.y)}));
   let phaseCycles=.28,blend=0,strideScale=1,look=0,waveBlend=0,stopTime=1,wasMoving=false,calibrated=false;
+  let lookElevation=0,eyeYaw=0,eyePitch=0,attention=0;
   let previousYaw=0,gaitYaw=0,turnRate=0,previousSpeed=0,acceleration=0,bodySpeed=0;
-  const feet=legs.map(()=>({rest:new THREE.Vector3(),world:new THREE.Vector3(),anchor:new THREE.Vector3(),swingOffset:new THREE.Vector3(),settleStart:new THREE.Vector3(),settleGoal:new THREE.Vector3(),pivotStart:new THREE.Vector3(),hull:[] as SolePoint[],flatSole:0,wasContact:true,plantYaw:0,pitch:0,stopPitch:0,settleDelay:0,pivotAge:1,contact:true}));
+  let pelvisY=hipsRest.y;
+  const feet=legs.map(()=>({rest:new THREE.Vector3(),world:new THREE.Vector3(),anchor:new THREE.Vector3(),swingOffset:new THREE.Vector3(),swingStart:0,settleStart:new THREE.Vector3(),settleGoal:new THREE.Vector3(),pivotStart:new THREE.Vector3(),hull:[] as SolePoint[],flatSole:0,wasContact:true,plantYaw:0,pitch:0,stopPitch:0,settleDelay:0,pivotAge:1,contact:true}));
   const goal=new THREE.Vector3(),localGoal=new THREE.Vector3(),hipPoint=new THREE.Vector3(),bodyInverse=new THREE.Quaternion(),footOrientation=new THREE.Quaternion(),sagittal=new THREE.Quaternion(),footEuler=new THREE.Euler();
   function rootPoint(local:THREE.Vector3,out:THREE.Vector3){return out.copy(local).applyMatrix4(root.matrixWorld);}
   function resetMotion(){
-    root.updateMatrixWorld(true);phaseCycles=.28;blend=0;strideScale=1;stopTime=1;wasMoving=false;previousYaw=gaitYaw=root.rotation.y;turnRate=0;previousSpeed=bodySpeed=acceleration=0;look=0;
+    root.updateMatrixWorld(true);
+    vrm.springBoneManager?.reset();
+    phaseCycles=.28;blend=0;strideScale=1;stopTime=1;wasMoving=false;previousYaw=gaitYaw=root.rotation.y;turnRate=0;previousSpeed=bodySpeed=acceleration=0;look=0;
+    lookElevation=eyeYaw=eyePitch=attention=waveBlend=0;
+    pelvisY=hipsRest.y;
     feet.forEach(f=>{rootPoint(f.rest,f.world);f.anchor.copy(f.world);f.wasContact=true;f.plantYaw=root.rotation.y;f.pitch=f.stopPitch=0;f.swingOffset.set(0,0,0);f.pivotAge=1;f.contact=true;});
   }
   const gazeTarget=new THREE.Object3D();root.add(gazeTarget);if(vrm.lookAt){vrm.lookAt.target=gazeTarget;vrm.lookAt.autoUpdate=true;}
@@ -98,21 +109,33 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
   const character:Character={
     root, resetMotion,
     getEyeHeight(){return targetHeight*(companion?.917:.923);},
-    getGazeTarget(target=new THREE.Vector3()){vrm.humanoid.getRawBoneNode('head')!.getWorldPosition(target);target.y+=.064*scale;return target;},
-    update(dt,time,speed,lookYaw=0,wave=false){
+    getGazeTarget(target=new THREE.Vector3()){
+      if(leftEye&&rightEye){
+        leftEye.getWorldPosition(target);rightEye.getWorldPosition(eyePoint);
+        return target.lerp(eyePoint,.5);
+      }
+      rawHead.getWorldPosition(target);target.y+=.064*scale;return target;
+    },
+    update(dt,time,speed,lookYaw=0,wave=false,lookPitch=0,engagement=0){
       dt=THREE.MathUtils.clamp(dt,0,.05);speed=Math.abs(speed);root.updateMatrixWorld(true);
       const moving=speed>.035;
       const yawChange=Math.atan2(Math.sin(root.rotation.y-previousYaw),Math.cos(root.rotation.y-previousYaw));
       turnRate=THREE.MathUtils.damp(turnRate,dt>0?THREE.MathUtils.clamp(yawChange/dt,-3,3):0,6,dt);previousYaw=root.rotation.y;
       acceleration=THREE.MathUtils.damp(acceleration,dt>0?THREE.MathUtils.clamp((speed-previousSpeed)/dt,-2,2):0,5,dt);previousSpeed=speed;
       bodySpeed=THREE.MathUtils.damp(bodySpeed,speed,7,dt);
-      look=THREE.MathUtils.damp(look,THREE.MathUtils.clamp(lookYaw,-1,1),4.5,dt);
+      const yawTarget=THREE.MathUtils.clamp(lookYaw,-1.15,1.15);
+      const pitchTarget=THREE.MathUtils.clamp(lookPitch,-.38,.38);
+      eyeYaw=THREE.MathUtils.damp(eyeYaw,yawTarget,12,dt);
+      eyePitch=THREE.MathUtils.damp(eyePitch,pitchTarget,12,dt);
+      look=THREE.MathUtils.damp(look,yawTarget,4.5,dt);
+      lookElevation=THREE.MathUtils.damp(lookElevation,pitchTarget,4.5,dt);
+      attention=THREE.MathUtils.damp(attention,THREE.MathUtils.clamp(engagement,0,1),engagement>attention?3.2:2.4,dt);
       gaitYaw+=Math.atan2(Math.sin(root.rotation.y-gaitYaw),Math.cos(root.rotation.y-gaitYaw))*(1-Math.exp(-7*dt));
       if(moving&&!wasMoving){
-        // Resume the lifted foot from toe-off, rather than jumping into the
-        // tail of a frozen swing after a brief stop.
-        const first=feet.findIndex(f=>!f.contact);
-        phaseCycles=Math.floor(phaseCycles)+(first===1?.06:.56);
+        // At rest the planted shoe sits under the pelvis, halfway through stance.
+        // Starting it at heel strike would hold it too far behind the hips.
+        const lifting=feet.findIndex(f=>!f.contact);
+        phaseCycles=Math.floor(phaseCycles)+STANCE*.5+(lifting===1?0:.5);
         feet.forEach(f=>{f.anchor.copy(f.world);f.wasContact=true;f.plantYaw=root.rotation.y;f.pivotAge=1;});
       }
       blend=THREE.MathUtils.damp(blend,moving?1:0,moving?6:5,dt);
@@ -146,9 +169,10 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
             if(f.pivotAge<.24){const q=f.pivotAge/.24;f.world.lerpVectors(f.pivotStart,f.anchor,ease(q));f.world.y=f.rest.y+.032*Math.sin(q*Math.PI)**2;f.contact=false;}
             else f.contact=true;
           }else{
-            const q=(cycles[i]-.56)/.44;
-            if(f.wasContact)f.swingOffset.copy(f.world).sub(goal);
-            f.world.copy(goal).addScaledVector(f.swingOffset,1-ease(q));f.world.y=f.rest.y+curve.lift;f.contact=false;
+            const q=(cycles[i]-STANCE)/(1-STANCE);
+            if(f.wasContact){f.swingOffset.copy(f.world).sub(goal);f.swingStart=q;}
+            const swingProgress=(q-f.swingStart)/(1-f.swingStart);
+            f.world.copy(goal).addScaledVector(f.swingOffset,1-ease(swingProgress));f.world.y=f.rest.y+curve.lift;f.contact=false;
           }
           f.pitch=curve.pitch*blend;f.wasContact=curve.contact;
         }else if(stopTime<.62){
@@ -192,6 +216,12 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
         const data=legData[i],reach=data.upper+data.lower-.003,dx=localGoal.x-hipPoint.x,dz=localGoal.z-hipPoint.z;
         hips.position.y=Math.min(hips.position.y,localGoal.y-(hipPoint.y-hips.position.y)+Math.sqrt(Math.max(.01,reach*reach-dx*dx-dz*dz)));
       }
+      // After toe-off the previous leg no longer limits reach. Recover from its
+      // knee bend over time while still meeting the next planted foot immediately.
+      if(calibrated){
+        pelvisY=Math.min(hips.position.y,pelvisY+dt*.73/scale);
+        hips.position.y=pelvisY;
+      }
       spine.rotation.set(rigAxis*(.016*pace*blend+acceleration*.012),-Math.sin(phase)*.020*blend,-rigAxis*turnRate*.013*blend);
       chest.rotation.set(rigAxis*Math.sin(time*1.45)*.006,-Math.sin(phase)*.027*blend-turnRate*.016*blend+look*.10,rigAxis*Math.sin(phase)*-.010*blend);
       bodyInverse.copy(hips.quaternion).invert();
@@ -216,18 +246,28 @@ export async function createCharacter(role:'companion'|'player'):Promise<Charact
         arms[i].elbow.rotation.set(-rigAxis*.045,-sign*(.11+.10*blend+.065*Math.sin(armPhase-.4)*blend),0);
         arms[i].hand.rotation.set(Math.sin(armPhase-.35)*.022*blend,0,rigAxis*sign*(.025+Math.sin(armPhase)*.018*blend));
       }
-      neck.rotation.y=look*.22;head.rotation.set(rigAxis*Math.sin(time*.83)*.012,look*.68,companion?rigAxis*Math.sin(time*.61)*.015:0);
-      // Eyes finish the turn after the chest, neck and head share its load.
-      gazeTarget.position.set(Math.sin(look*1.14)*2,character.getEyeHeight(),Math.cos(look*1.14)*2);
+      neck.rotation.set(rigAxis*lookElevation*.20,look*.20,0);
+      head.rotation.set(rigAxis*(Math.sin(time*.83)*.012+lookElevation*.55),look*.55,companion?rigAxis*Math.sin(time*.61)*.015:0);
+      // The eyes acquire the face first; the slower torso, neck and head catch up.
+      const horizontal=2*Math.cos(eyePitch);
+      gazeTarget.position.set(Math.sin(eyeYaw)*horizontal,character.getEyeHeight()+2*Math.sin(eyePitch),Math.cos(eyeYaw)*horizontal);
       const blinkPhase=(time+(companion?0:1.9))%4.9,blink=blinkPhase>4.69?Math.sin((blinkPhase-4.69)/.21*Math.PI):0;
-      vrm.expressionManager?.setValue('blink',Math.max(0,blink));vrm.expressionManager?.setValue('happy',companion?.06:.055);vrm.expressionManager?.setValue('relaxed',companion?.025:.04);
       waveBlend=THREE.MathUtils.damp(waveBlend,wave?1:0,7,dt);
-      if(companion&&waveBlend>.001){arms[0].shoulder.rotation.z-=rigAxis*.70*waveBlend;arms[0].shoulder.rotation.x-=rigAxis*.14*waveBlend;arms[0].elbow.rotation.y+=.10*waveBlend;arms[0].elbow.rotation.z-=rigAxis*2.10*waveBlend;arms[0].hand.rotation.z+=rigAxis*Math.sin(time*8)*.16*waveBlend;vrm.expressionManager?.setValue('happy',.06+waveBlend*.16);}
+      vrm.expressionManager?.setValue('blink',Math.max(0,blink));
+      vrm.expressionManager?.setValue('happy',(companion?.06:.055)+attention*(companion?.10:.08)+waveBlend*.10);
+      vrm.expressionManager?.setValue('relaxed',(companion?.025:.04)+attention*.045);
+      if(waveBlend>.001){
+        const lift=waveBlend*(companion?1:.9);
+        arms[0].shoulder.rotation.z-=rigAxis*.70*lift;arms[0].shoulder.rotation.x-=rigAxis*.14*lift;
+        arms[0].elbow.rotation.y+=.10*lift;arms[0].elbow.rotation.z-=rigAxis*2.10*lift;
+        arms[0].hand.rotation.z+=rigAxis*Math.sin(time*(companion?8:6.5))*.16*lift;
+      }
       vrm.update(dt);root.updateMatrixWorld(true);
+      if(!inspectGait)return;
       root.userData.character.gaitBlend=blend;root.userData.character.waveBlend=waveBlend;
-      root.userData.character.lookYaw=look;root.userData.character.turnRate=turnRate;
+      root.userData.character.lookYaw=look;root.userData.character.lookPitch=lookElevation;root.userData.character.engagement=attention;root.userData.character.turnRate=turnRate;
       root.userData.character.gait={phase:phaseCycles,strideScale,settling:!moving&&stopTime<.62,feet:feet.map((f,i)=>({cycle:cycles[i],contact:f.contact,pitch:f.pitch,goal:{x:f.world.x,y:f.world.y,z:f.world.z}}))};
-      root.userData.character.feet=legs.map((_,i)=>{vrm.humanoid.getRawBoneNode(i===0?'leftFoot':'rightFoot')!.getWorldPosition(v);return {x:v.x,y:v.y,z:v.z};});
+      root.userData.character.feet=rawFeet.map(foot=>{v.setFromMatrixPosition(foot.matrixWorld);return {x:v.x,y:v.y,z:v.z};});
     }
   };
   character.update(0,0,0);
